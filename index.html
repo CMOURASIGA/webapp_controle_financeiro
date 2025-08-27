@@ -44,7 +44,7 @@
 
         /* Layout Principal */
         .container {
-            max-width: 480px;
+            width: 100%;
             margin: 0 auto;
             background: white;
             min-height: 100vh;
@@ -228,7 +228,7 @@
             left: 50%;
             transform: translateX(-50%);
             width: 100%;
-            max-width: 480px;
+
             background: white;
             border-top: 1px solid var(--border);
             display: flex;
@@ -604,6 +604,20 @@
                 max-height: 80vh;
             }
         }
+
+@media (min-width: 768px) {
+            .container,
+            .bottom-nav {
+                max-width: 768px;
+            }
+        }
+
+        @media (min-width: 1024px) {
+            .container,
+            .bottom-nav {
+                max-width: 1024px;
+            }
+        }        
     </style>
 </head>
 <body>
