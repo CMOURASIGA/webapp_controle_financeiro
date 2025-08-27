@@ -1,29 +1,2204 @@
-    <!-- Modal Menu/Configurações -->
-    <div id="modal-menu" class="modal">
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Controle Financeiro PJ</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#4F46E5">
+    <style>
+        /* Reset e Base */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #4F46E5;
+            --primary-light: #6366F1;
+            --success: #10B981;
+            --warning: #F59E0B;
+            --danger: #EF4444;
+            --gray-50: #F9FAFB;
+            --gray-100: #F3F4F6;
+            --gray-200: #E5E7EB;
+            --gray-300: #D1D5DB;
+            --gray-600: #4B5563;
+            --gray-800: #1F2937;
+            --gray-900: #111827;
+            --text: #1F2937;
+            --text-light: #6B7280;
+            --border: #E5E7EB;
+            --shadow: 0 1px 3px rgba(0,0,0,0.1);
+            --shadow-lg: 0 10px 15px rgba(0,0,0,0.1);
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.5;
+            color: var(--text);
+            background: var(--gray-50);
+            padding-bottom: 80px;
+        }
+
+        /* Layout Principal */
+        .container {
+            max-width: 480px;
+            margin: 0 auto;
+            background: white;
+            min-height: 100vh;
+            box-shadow: var(--shadow-lg);
+        }
+
+        .header {
+            background: var(--primary);
+            color: white;
+            padding: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header h1 {
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn-icon {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-icon:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
+        /* Cards */
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 16px;
+            margin: 16px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            justify-content: between;
+            margin-bottom: 12px;
+        }
+
+        .card-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text);
+        }
+
+        /* Dashboard Cards */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin: 16px;
+        }
+
+        .kpi-card {
+            background: white;
+            padding: 16px;
+            border-radius: 12px;
+            box-shadow: var(--shadow);
+            text-align: center;
+            border: 1px solid var(--border);
+        }
+
+        .kpi-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--primary);
+            margin-bottom: 4px;
+        }
+
+        .kpi-label {
+            font-size: 12px;
+            color: var(--text-light);
+            font-weight: 500;
+        }
+
+        /* Botões */
+        .btn {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            text-decoration: none;
+            min-height: 48px;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-light);
+        }
+
+        .btn-success {
+            background: var(--success);
+            color: white;
+        }
+
+        .btn-warning {
+            background: var(--warning);
+            color: white;
+        }
+
+        .btn-danger {
+            background: var(--danger);
+            color: white;
+        }
+
+        .btn-outline {
+            background: transparent;
+            border: 2px solid var(--primary);
+            color: var(--primary);
+        }
+
+        .btn-full {
+            width: 100%;
+        }
+
+        /* FAB - Floating Action Button */
+        .fab {
+            position: fixed;
+            bottom: 90px;
+            right: 20px;
+            width: 56px;
+            height: 56px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            box-shadow: var(--shadow-lg);
+            cursor: pointer;
+            z-index: 200;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            transition: all 0.3s;
+        }
+
+        .fab:hover {
+            background: var(--primary-light);
+            transform: scale(1.1);
+        }
+
+        /* Bottom Navigation */
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 100%;
+            max-width: 480px;
+            background: white;
+            border-top: 1px solid var(--border);
+            display: flex;
+            z-index: 100;
+        }
+
+        .nav-item {
+            flex: 1;
+            padding: 12px 8px;
+            text-align: center;
+            color: var(--text-light);
+            text-decoration: none;
+            transition: all 0.2s;
+            font-size: 12px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .nav-item.active {
+            color: var(--primary);
+            background: var(--gray-50);
+        }
+
+        .nav-icon {
+            font-size: 20px;
+        }
+
+        /* Formulários */
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text);
+            margin-bottom: 8px;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            font-size: 16px;
+            transition: all 0.2s;
+            background: white;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+        }
+
+        .form-select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            font-size: 16px;
+            background: white;
+            cursor: pointer;
+        }
+
+        .form-textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            font-size: 16px;
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        /* Toggle Switch */
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 24px;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: var(--gray-300);
+            transition: .4s;
+            border-radius: 24px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider {
+            background-color: var(--primary);
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(26px);
+        }
+
+        /* Listas */
+        .list-item {
+            padding: 16px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .list-item:hover {
+            background: var(--gray-50);
+        }
+
+        .list-item:last-child {
+            border-bottom: none;
+        }
+
+        .item-content {
+            flex: 1;
+        }
+
+        .item-title {
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .item-subtitle {
+            font-size: 14px;
+            color: var(--text-light);
+        }
+
+        .item-value {
+            font-weight: 700;
+            font-size: 16px;
+        }
+
+        .item-value.positive {
+            color: var(--success);
+        }
+
+        .item-value.negative {
+            color: var(--danger);
+        }
+
+        /* Status Badges */
+        .badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .badge-success {
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--success);
+        }
+
+        .badge-warning {
+            background: rgba(245, 158, 11, 0.1);
+            color: var(--warning);
+        }
+
+        .badge-danger {
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--danger);
+        }
+
+        .badge-info {
+            background: rgba(79, 70, 229, 0.1);
+            color: var(--primary);
+        }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            animation: fadeIn 0.3s;
+        }
+
+        .modal.show {
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background: white;
+            width: 100%;
+            max-width: 480px;
+            border-radius: 20px 20px 0 0;
+            padding: 24px;
+            max-height: 90vh;
+            overflow-y: auto;
+            animation: slideUp 0.3s ease-out;
+        }
+
+        .modal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+
+        .modal-title {
+            font-size: 20px;
+            font-weight: 700;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: var(--text-light);
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Loading */
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 40px;
+        }
+
+        .spinner {
+            width: 32px;
+            height: 32px;
+            border: 3px solid var(--border);
+            border-top: 3px solid var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        /* Animações */
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes slideUp {
+            from { transform: translateY(100%); }
+            to { transform: translateY(0); }
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Estados */
+        .hidden {
+            display: none !important;
+        }
+
+        .error {
+            color: var(--danger);
+            font-size: 14px;
+            margin-top: 4px;
+        }
+
+        /* Alert */
+        .alert {
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin: 16px;
+            border-left: 4px solid;
+        }
+
+        .alert-success {
+            background: rgba(16, 185, 129, 0.1);
+            border-color: var(--success);
+            color: #065f46;
+        }
+
+        .alert-error {
+            background: rgba(239, 68, 68, 0.1);
+            border-color: var(--danger);
+            color: #991b1b;
+        }
+
+        .alert-warning {
+            background: rgba(245, 158, 11, 0.1);
+            border-color: var(--warning);
+            color: #92400e;
+        }
+
+        /* Tabs */
+        .tabs {
+            display: flex;
+            border-bottom: 2px solid var(--border);
+            margin: 16px 16px 0 16px;
+        }
+
+        .tab {
+            flex: 1;
+            padding: 12px;
+            text-align: center;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-light);
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+        }
+
+        .tab.active {
+            color: var(--primary);
+            border-bottom-color: var(--primary);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* Responsive */
+        @media (min-width: 481px) {
+            .container {
+                border-left: 1px solid var(--border);
+                border-right: 1px solid var(--border);
+            }
+            
+            .modal.show {
+                align-items: center;
+            }
+            
+            .modal-content {
+                border-radius: 12px;
+                max-height: 80vh;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1 id="page-title">Controle Financeiro</h1>
+            <div class="header-actions">
+                <button class="btn-icon" onclick="showNotifications()" title="Notificações">
+                    🔔
+                </button>
+                <button class="btn-icon" onclick="showMenu()" title="Menu">
+                    ☰
+                </button>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <main id="main-content">
+            <!-- Home Screen -->
+            <div id="home-screen" class="screen active">
+                <!-- Dashboard KPIs -->
+                <div class="dashboard-grid">
+                    <div class="kpi-card">
+                        <div class="kpi-value" id="saldo-mes">R$ 0</div>
+                        <div class="kpi-label">Saldo do Mês</div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-value" id="total-entradas">R$ 0</div>
+                        <div class="kpi-label">Entradas</div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-value" id="total-saidas">R$ 0</div>
+                        <div class="kpi-label">Saídas</div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-value" id="pro-labore">R$ 0</div>
+                        <div class="kpi-label">Pró-labore</div>
+                    </div>
+                </div>
+
+                <!-- Ações Rápidas -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Ações Rápidas</h3>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                        <button class="btn btn-primary" onclick="showNovaTransacao()">
+                            💰 Nova Transação
+                        </button>
+                        <button class="btn btn-outline" onclick="showNovaAgenda()">
+                            📅 Agendar
+                        </button>
+                        <button class="btn btn-outline" onclick="showNovaReserva()">
+                            🏦 Reservar
+                        </button>
+                        <button class="btn btn-outline" onclick="navegarPara('planilha')">
+                            📊 Planilha
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Próximos Vencimentos -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Próximos Vencimentos</h3>
+                        <span class="badge badge-info" id="count-proximos">0</span>
+                    </div>
+                    <div id="proximos-vencimentos" class="loading">
+                        <div class="spinner"></div>
+                    </div>
+                </div>
+
+                <!-- Em Atraso -->
+                <div class="card" id="card-atrasados" style="display: none;">
+                    <div class="card-header">
+                        <h3 class="card-title">Em Atraso</h3>
+                        <span class="badge badge-danger" id="count-atrasados">0</span>
+                    </div>
+                    <div id="lista-atrasados"></div>
+                </div>
+            </div>
+
+            <!-- Transações Screen -->
+            <div id="transacoes-screen" class="screen hidden">
+                <!-- Filtros -->
+                <div class="card">
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                        <select class="form-select" id="filtro-mes" onchange="filtrarTransacoes()" style="flex: 1; min-width: 120px;">
+                            <option value="">Todos os meses</option>
+                        </select>
+                        <select class="form-select" id="filtro-categoria" onchange="filtrarTransacoes()" style="flex: 1; min-width: 120px;">
+                            <option value="">Todas categorias</option>
+                        </select>
+                        <select class="form-select" id="filtro-status" onchange="filtrarTransacoes()" style="flex: 1; min-width: 100px;">
+                            <option value="">Todos status</option>
+                            <option value="Pago">Pago</option>
+                            <option value="Pendente">Pendente</option>
+                            <option value="Cancelado">Cancelado</option>
+                        </select>
+                    </div>
+                    <div style="margin-top: 12px;">
+                        <input type="text" class="form-input" id="busca-transacoes" placeholder="Buscar descrição..." oninput="filtrarTransacoes()">
+                    </div>
+                </div>
+
+                <!-- Lista de Transações -->
+                <div id="lista-transacoes" class="loading">
+                    <div class="spinner"></div>
+                </div>
+            </div>
+
+            <!-- Agendas Screen -->
+            <div id="agendas-screen" class="screen hidden">
+                <div class="tabs">
+                    <button class="tab active" onclick="mostrarTab('agenda-lista')">Lista</button>
+                    <button class="tab" onclick="mostrarTab('agenda-calendario')">Calendário</button>
+                </div>
+
+                <div id="agenda-lista" class="tab-content active">
+                    <div id="lista-agendas" class="loading">
+                        <div class="spinner"></div>
+                    </div>
+                </div>
+
+                <div id="agenda-calendario" class="tab-content">
+                    <div class="card">
+                        <p style="text-align: center; color: var(--text-light);">
+                            Calendário em desenvolvimento
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Reservas Screen -->
+            <div id="reservas-screen" class="screen hidden">
+                <div id="lista-reservas" class="loading">
+                    <div class="spinner"></div>
+                </div>
+            </div>
+
+            <!-- Planilha Screen -->
+            <div id="planilha-screen" class="screen hidden">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Planilha Consolidada</h3>
+                        <button class="btn btn-outline" onclick="atualizarPlanilha()" style="padding: 6px 12px; font-size: 14px;">
+                            🔄 Atualizar
+                        </button>
+                    </div>
+                    <div id="planilha-conteudo" class="loading">
+                        <div class="spinner"></div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- FAB -->
+        <button class="fab" onclick="showNovaTransacao()" title="Nova Transação">
+            +
+        </button>
+
+        <!-- Bottom Navigation -->
+        <nav class="bottom-nav">
+            <a href="#" class="nav-item active" onclick="navegarPara('home')">
+                <span class="nav-icon">🏠</span>
+                <span>Home</span>
+            </a>
+            <a href="#" class="nav-item" onclick="navegarPara('transacoes')">
+                <span class="nav-icon">💰</span>
+                <span>Transações</span>
+            </a>
+            <a href="#" class="nav-item" onclick="navegarPara('agendas')">
+                <span class="nav-icon">📅</span>
+                <span>Agendas</span>
+            </a>
+            <a href="#" class="nav-item" onclick="navegarPara('reservas')">
+                <span class="nav-icon">🏦</span>
+                <span>Reservas</span>
+            </a>
+            <a href="#" class="nav-item" onclick="navegarPara('planilha')">
+                <span class="nav-icon">📊</span>
+                <span>Planilha</span>
+            </a>
+        </nav>
+    </div>
+
+    <!-- Modal Nova Transação -->
+    <div id="modal-nova-transacao" class="modal">
         <div class="modal-content">
             <div class="modal-header">
-                <h2 class="modal-title">Menu</h2>
-                <button class="close-btn" onclick="fecharModal('modal-menu')">&times;</button>
+                <h2 class="modal-title">Nova Transação</h2>
+                <button class="close-btn" onclick="fecharModal('modal-nova-transacao')">&times;</button>
             </div>
-            <div class="list-item" onclick="mostrarGerenciarCategorias()">
-                <div class="item-content">
-                    <div class="item-title">Gerenciar Categorias</div>
-                    <div class="item-subtitle">Adicionar, editar ou desativar categorias</div>
+            <form id="form-nova-transacao">
+                <div class="form-group">
+                    <label class="form-label">Data</label>
+                    <input type="date" class="form-input" id="transacao-data" required>
                 </div>
-            </div>
-            <div class="list-item" onclick="mostrarConfiguracoes()">
-                <div class="item-content">
-                    <div class="item-title">Configurações</div>
-                    <div class="item-subtitle">Configurar planilha e outras opções</div>
+                <div class="form-group">
+                    <label class="form-label">Tipo</label>
+                    <select class="form-select" id="transacao-tipo" required onchange="atualizarCategorias()">
+                        <option value="">Selecionar</option>
+                        <option value="Entrada">Entrada</option>
+                        <option value="Saída">Saída</option>
+                        <option value="Transferência">Transferência</option>
+                    </select>
                 </div>
-            </div>
-             <div class="list-item" onclick="executarSetup()">
-                <div class="item-content">
-                    <div class="item-title">Executar Setup Inicial</div>
-                    <div class="item-subtitle">Criar planilha e configurações iniciais (usar apenas uma vez)</div>
+                <div class="form-group">
+                    <label class="form-label">Categoria</label>
+                    <select class="form-select" id="transacao-categoria" required>
+                        <option value="">Selecionar</option>
+                    </select>
                 </div>
+                <div class="form-group">
+                    <label class="form-label">Descrição</label>
+                    <input type="text" class="form-input" id="transacao-descricao" required placeholder="Descrição da transação">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Valor (R$)</label>
+                    <input type="number" class="form-input" id="transacao-valor" required step="0.01" min="0" placeholder="0,00">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Forma de Pagamento</label>
+                    <select class="form-select" id="transacao-forma-pagto" required>
+                        <option value="">Selecionar</option>
+                        <option value="Pix">Pix</option>
+                        <option value="Cartão">Cartão</option>
+                        <option value="Boleto">Boleto</option>
+                        <option value="Dinheiro">Dinheiro</option>
+                        <option value="TED">TED</option>
+                        <option value="Outros">Outros</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" style="display: flex; align-items: center; justify-content: space-between;">
+                        <span>Status</span>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="transacao-pago">
+                            <span class="slider"></span>
+                        </label>
+                    </label>
+                    <div style="font-size: 14px; color: var(--text-light); margin-top: 4px;">
+                        <span id="status-label">Pendente</span>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Agenda Vinculada (opcional)</label>
+                    <select class="form-select" id="transacao-agenda">
+                        <option value="">Nenhuma agenda</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Comprovante (opcional)</label>
+                    <input type="file" class="form-input" id="transacao-comprovante" accept="image/*,application/pdf">
+                </div>
+                <div style="display: flex; gap: 12px; margin-top: 24px;">
+                    <button type="button" class="btn btn-outline btn-full" onclick="fecharModal('modal-nova-transacao')">
+                        Cancelar
+                    </button>
+                    <button type="submit" class="btn btn-primary btn-full">
+                        Salvar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Nova Agenda -->
+    <div id="modal-nova-agenda" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Agendar Pagamento/Recebimento</h2>
+                <button class="close-btn" onclick="fecharModal('modal-nova-agenda')">&times;</button>
             </div>
+            <form id="form-nova-agenda">
+                <div class="form-group">
+                    <label class="form-label">Tipo</label>
+                    <select class="form-select" id="agenda-tipo" required>
+                        <option value="">Selecionar</option>
+                        <option value="Pagar">Pagar</option>
+                        <option value="Receber">Receber</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Descrição</label>
+                    <input type="text" class="form-input" id="agenda-descricao" required placeholder="Descrição do agendamento">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Valor Previsto (R$)</label>
+                    <input type="number" class="form-input" id="agenda-valor" required step="0.01" min="0" placeholder="0,00">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Data de Vencimento</label>
+                    <input type="date" class="form-input" id="agenda-vencimento" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Recorrência</label>
+                    <select class="form-select" id="agenda-recorrencia" onchange="toggleParcelas()">
+                        <option value="Nenhuma">Nenhuma</option>
+                        <option value="Semanal">Semanal</option>
+                        <option value="Mensal">Mensal</option>
+                        <option value="Anual">Anual</option>
+                    </select>
+                </div>
+                <div class="form-group" id="parcelas-group" style="display: none;">
+                    <label class="form-label">Número de Parcelas</label>
+                    <input type="number" class="form-input" id="agenda-parcelas" min="2" max="60" placeholder="2">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Lembrar em (dias antes)</label>
+                    <input type="text" class="form-input" id="agenda-notificar" placeholder="7;3;1" value="7;3;1">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Email Responsável</label>
+                    <input type="email" class="form-input" id="agenda-email" placeholder="seu@email.com">
+                </div>
+                <div style="display: flex; gap: 12px; margin-top: 24px;">
+                    <button type="button" class="btn btn-outline btn-full" onclick="fecharModal('modal-nova-agenda')">
+                        Cancelar
+                    </button>
+                    <button type="submit" class="btn btn-primary btn-full">
+                        Agendar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Nova Reserva -->
+    <div id="modal-nova-reserva" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Nova Reserva</h2>
+                <button class="close-btn" onclick="fecharModal('modal-nova-reserva')">&times;</button>
+            </div>
+            <form id="form-nova-reserva">
+                <div class="form-group">
+                    <label class="form-label">Descrição</label>
+                    <input type="text" class="form-input" id="reserva-descricao" required placeholder="Descrição da reserva">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Categoria</label>
+                    <input type="text" class="form-input" id="reserva-categoria" required placeholder="Ex: Impostos, Emergência">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Valor a Reservar (R$)</label>
+                    <input type="number" class="form-input" id="reserva-valor" required step="0.01" min="0" placeholder="0,00">
+                </div>
+                <div style="display: flex; gap: 12px; margin-top: 24px;">
+                    <button type="button" class="btn btn-outline btn-full" onclick="fecharModal('modal-nova-reserva')">
+                        Cancelar
+                    </button>
+                    <button type="submit" class="btn btn-success btn-full">
+                        Reservar
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 
     <!-- Scripts -->
+    <script>
+        // ===== VARIÁVEIS GLOBAIS =====
+        let currentScreen = 'home';
+        let categorias = [];
+        let agendas = [];
+        let transacoes = [];
+        let reservas = [];
+        let dashboard = {};
+
+        // ===== INICIALIZAÇÃO =====
+        document.addEventListener('DOMContentLoaded', function() {
+            inicializarApp();
+        });
+
+        async function inicializarApp() {
+            try {
+                // Definir data padrão para hoje
+                const hoje = new Date().toISOString().split('T')[0];
+                document.getElementById('transacao-data').value = hoje;
+                document.getElementById('agenda-vencimento').value = hoje;
+
+                // Carregar dados iniciais
+                await Promise.all([
+                    carregarCategorias(),
+                    carregarDashboard(),
+                    carregarProximosVencimentos()
+                ]);
+
+                // Setup event listeners
+                setupEventListeners();
+                
+                // Preencher filtros
+                preencherFiltroMeses();
+                
+            } catch (error) {
+                console.error('Erro na inicialização:', error);
+                mostrarAlerta('Erro ao carregar dados iniciais', 'error');
+            }
+        }
+
+        function setupEventListeners() {
+            // Toggle status transação
+            const statusToggle = document.getElementById('transacao-pago');
+            const statusLabel = document.getElementById('status-label');
+            
+            statusToggle.addEventListener('change', function() {
+                statusLabel.textContent = this.checked ? 'Pago' : 'Pendente';
+            });
+
+            // Forms
+            document.getElementById('form-nova-transacao').addEventListener('submit', handleNovaTransacao);
+            document.getElementById('form-nova-agenda').addEventListener('submit', handleNovaAgenda);
+            document.getElementById('form-nova-reserva').addEventListener('submit', handleNovaReserva);
+
+            // Click fora do modal para fechar
+            document.addEventListener('click', function(e) {
+                if (e.target.classList.contains('modal')) {
+                    const modals = document.querySelectorAll('.modal.show');
+                    modals.forEach(modal => modal.classList.remove('show'));
+                }
+            });
+        }
+
+        // ===== NAVEGAÇÃO =====
+        function navegarPara(screen) {
+            // Ocultar todas as telas
+            document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
+            
+            // Mostrar tela selecionada
+            document.getElementById(screen + '-screen').classList.remove('hidden');
+            
+            // Atualizar navegação
+            document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
+            document.querySelector(`[onclick="navegarPara('${screen}')"]`).classList.add('active');
+            
+            // Atualizar título
+            const titulos = {
+                'home': 'Controle Financeiro',
+                'transacoes': 'Transações',
+                'agendas': 'Agendas',
+                'reservas': 'Reservas',
+                'planilha': 'Planilha'
+            };
+            
+            document.getElementById('page-title').textContent = titulos[screen];
+            currentScreen = screen;
+
+            // Carregar dados específicos da tela
+            switch(screen) {
+                case 'transacoes':
+                    carregarTransacoes();
+                    break;
+                case 'agendas':
+                    carregarAgendas();
+                    break;
+                case 'reservas':
+                    carregarReservas();
+                    break;
+                case 'planilha':
+                    carregarPlanilha();
+                    break;
+            }
+        }
+
+        function mostrarTab(tabId) {
+            // Ocultar todos os conteúdos
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            
+            // Remover ativo de todas as tabs
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Mostrar conteúdo selecionado
+            document.getElementById(tabId).classList.add('active');
+            
+            // Ativar tab
+            event.target.classList.add('active');
+        }
+
+        // ===== MODAIS =====
+        function showNovaTransacao() {
+            document.getElementById('modal-nova-transacao').classList.add('show');
+            carregarAgendasPendentes();
+        }
+
+        function showNovaAgenda() {
+            document.getElementById('modal-nova-agenda').classList.add('show');
+        }
+
+        function showNovaReserva() {
+            document.getElementById('modal-nova-reserva').classList.add('show');
+        }
+
+        function fecharModal(modalId) {
+            document.getElementById(modalId).classList.remove('show');
+            limparFormulario(modalId);
+        }
+
+        function limparFormulario(modalId) {
+            const modal = document.getElementById(modalId);
+            const form = modal.querySelector('form');
+            if (form) {
+                form.reset();
+                // Resetar data para hoje
+                const campoData = form.querySelector('input[type="date"]');
+                if (campoData) {
+                    campoData.value = new Date().toISOString().split('T')[0];
+                }
+                // Resetar toggle
+                const statusLabel = document.getElementById('status-label');
+                if (statusLabel) statusLabel.textContent = 'Pendente';
+            }
+        }
+
+        function toggleParcelas() {
+            const recorrencia = document.getElementById('agenda-recorrencia').value;
+            const parcelasGroup = document.getElementById('parcelas-group');
+            
+            if (recorrencia !== 'Nenhuma') {
+                parcelasGroup.style.display = 'block';
+            } else {
+                parcelasGroup.style.display = 'none';
+            }
+        }
+
+        // ===== API CALLS =====
+        async function apiCall(endpoint, options = {}) {
+            try {
+                const url = `${window.location.origin}${window.location.pathname}`;
+                const params = new URLSearchParams({ path: endpoint });
+                
+                let fetchOptions = {
+                    method: options.method || 'GET',
+                    ...options
+                };
+
+                if (options.method === 'POST' && options.data) {
+                    fetchOptions.headers = {
+                        'Content-Type': 'application/json',
+                        ...fetchOptions.headers
+                    };
+                    fetchOptions.body = JSON.stringify(options.data);
+                }
+
+                const response = await fetch(`${url}?${params}`, fetchOptions);
+                const result = await response.json();
+
+                if (!result.ok) {
+                    throw new Error(result.error || 'Erro na API');
+                }
+
+                return result.data;
+            } catch (error) {
+                console.error('Erro na API:', error);
+                throw error;
+            }
+        }
+
+        // ===== CARREGAR DADOS =====
+        async function carregarCategorias() {
+            try {
+                categorias = await apiCall('api/categorias');
+                preencherSelectCategorias();
+            } catch (error) {
+                console.error('Erro ao carregar categorias:', error);
+            }
+        }
+
+        async function carregarDashboard() {
+            try {
+                dashboard = await apiCall('api/dashboard');
+                atualizarKPIs();
+            } catch (error) {
+                console.error('Erro ao carregar dashboard:', error);
+            }
+        }
+
+        async function carregarProximosVencimentos() {
+            try {
+                const data = await apiCall('api/dashboard');
+                renderizarProximosVencimentos(data.agendas || []);
+                renderizarAtrasados(data.atrasados || []);
+            } catch (error) {
+                console.error('Erro ao carregar vencimentos:', error);
+                document.getElementById('proximos-vencimentos').innerHTML = 
+                    '<p style="text-align: center; color: var(--text-light); padding: 20px;">Erro ao carregar dados</p>';
+            }
+        }
+
+        async function carregarTransacoes() {
+            try {
+                document.getElementById('lista-transacoes').innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+                
+                transacoes = await apiCall('api/transacoes');
+                renderizarTransacoes(transacoes);
+                
+            } catch (error) {
+                console.error('Erro ao carregar transações:', error);
+                document.getElementById('lista-transacoes').innerHTML = 
+                    '<p style="text-align: center; color: var(--text-light); padding: 20px;">Erro ao carregar transações</p>';
+            }
+        }
+
+        async function carregarAgendas() {
+            try {
+                document.getElementById('lista-agendas').innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+                
+                agendas = await apiCall('api/agendas');
+                renderizarAgendas(agendas);
+                
+            } catch (error) {
+                console.error('Erro ao carregar agendas:', error);
+                document.getElementById('lista-agendas').innerHTML = 
+                    '<p style="text-align: center; color: var(--text-light); padding: 20px;">Erro ao carregar agendas</p>';
+            }
+        }
+
+        async function carregarReservas() {
+            try {
+                document.getElementById('lista-reservas').innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+                
+                reservas = await apiCall('api/reservas');
+                renderizarReservas(reservas);
+                
+            } catch (error) {
+                console.error('Erro ao carregar reservas:', error);
+                document.getElementById('lista-reservas').innerHTML = 
+                    '<p style="text-align: center; color: var(--text-light); padding: 20px;">Erro ao carregar reservas</p>';
+            }
+        }
+
+        async function carregarPlanilha() {
+            try {
+                document.getElementById('planilha-conteudo').innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+                
+                // Carregar dados dos últimos 12 meses
+                const planilhaData = await carregarDadosPlanilha();
+                renderizarPlanilha(planilhaData);
+                
+            } catch (error) {
+                console.error('Erro ao carregar planilha:', error);
+                document.getElementById('planilha-conteudo').innerHTML = 
+                    '<p style="text-align: center; color: var(--text-light); padding: 20px;">Erro ao carregar planilha</p>';
+            }
+        }
+
+        async function carregarDadosPlanilha() {
+            const meses = [];
+            const hoje = new Date();
+            
+            // Gerar últimos 12 meses
+            for (let i = 11; i >= 0; i--) {
+                const data = new Date(hoje.getFullYear(), hoje.getMonth() - i, 1);
+                const yyyymm = `${data.getFullYear()}-${String(data.getMonth() + 1).padStart(2, '0')}`;
+                meses.push(yyyymm);
+            }
+
+            // Carregar dados de cada mês
+            const dadosPorMes = {};
+            
+            for (const mes of meses) {
+                try {
+                    const dadosMes = await apiCall(`api/mes/${mes}`);
+                    dadosPorMes[mes] = dadosMes.totais;
+                } catch (error) {
+                    console.error(`Erro ao carregar mês ${mes}:`, error);
+                    dadosPorMes[mes] = {
+                        entradas: 0,
+                        impostos: 0,
+                        proLabore: 0,
+                        despesas: 0,
+                        investimentos: 0
+                    };
+                }
+            }
+
+            return { meses, dados: dadosPorMes };
+        }
+
+        async function carregarAgendasPendentes() {
+            try {
+                const agendasPendentes = await apiCall('api/agendas?status=Aberta,Programada');
+                
+                const select = document.getElementById('transacao-agenda');
+                select.innerHTML = '<option value="">Nenhuma agenda</option>';
+                
+                agendasPendentes.forEach(agenda => {
+                    const option = document.createElement('option');
+                    option.value = agenda.agenda_id;
+                    option.textContent = `${agenda.descricao} - R$ ${formatarMoeda(agenda.valor_previsto)}`;
+                    select.appendChild(option);
+                });
+                
+            } catch (error) {
+                console.error('Erro ao carregar agendas pendentes:', error);
+            }
+        }
+
+        // ===== HANDLERS DE FORMULÁRIO =====
+        async function handleNovaTransacao(event) {
+            event.preventDefault();
+            
+            try {
+                const botaoSalvar = event.target.querySelector('button[type="submit"]');
+                botaoSalvar.disabled = true;
+                botaoSalvar.textContent = 'Salvando...';
+
+                const formData = {
+                    data: document.getElementById('transacao-data').value,
+                    tipo: document.getElementById('transacao-tipo').value,
+                    categoria: document.getElementById('transacao-categoria').value,
+                    descricao: document.getElementById('transacao-descricao').value,
+                    valor: parseFloat(document.getElementById('transacao-valor').value),
+                    forma_pagto: document.getElementById('transacao-forma-pagto').value,
+                    status: document.getElementById('transacao-pago').checked ? 'Pago' : 'Pendente',
+                    vinculo_agenda_id: document.getElementById('transacao-agenda').value || null
+                };
+
+                const resultado = await apiCall('api/transacoes', {
+                    method: 'POST',
+                    data: formData
+                });
+
+                // Upload de comprovante se houver
+                const arquivoComprovante = document.getElementById('transacao-comprovante').files[0];
+                if (arquivoComprovante) {
+                    await uploadComprovante(resultado.id, arquivoComprovante);
+                }
+
+                mostrarAlerta('Transação criada com sucesso!', 'success');
+                fecharModal('modal-nova-transacao');
+                
+                // Atualizar dados
+                await carregarDashboard();
+                if (currentScreen === 'transacoes') {
+                    await carregarTransacoes();
+                }
+
+            } catch (error) {
+                console.error('Erro ao salvar transação:', error);
+                mostrarAlerta('Erro ao salvar transação: ' + error.message, 'error');
+            } finally {
+                const botaoSalvar = event.target.querySelector('button[type="submit"]');
+                botaoSalvar.disabled = false;
+                botaoSalvar.textContent = 'Salvar';
+            }
+        }
+
+        async function handleNovaAgenda(event) {
+            event.preventDefault();
+            
+            try {
+                const botaoSalvar = event.target.querySelector('button[type="submit"]');
+                botaoSalvar.disabled = true;
+                botaoSalvar.textContent = 'Agendando...';
+
+                const formData = {
+                    tipo: document.getElementById('agenda-tipo').value,
+                    descricao: document.getElementById('agenda-descricao').value,
+                    valor_previsto: parseFloat(document.getElementById('agenda-valor').value),
+                    data_vencimento: document.getElementById('agenda-vencimento').value,
+                    recorrencia: document.getElementById('agenda-recorrencia').value,
+                    notificar_em: document.getElementById('agenda-notificar').value,
+                    responsavel_email: document.getElementById('agenda-email').value,
+                    parcelas: document.getElementById('agenda-parcelas').value || 1
+                };
+
+                await apiCall('api/agendas', {
+                    method: 'POST',
+                    data: formData
+                });
+
+                mostrarAlerta('Agendamento criado com sucesso!', 'success');
+                fecharModal('modal-nova-agenda');
+                
+                // Atualizar dados
+                await carregarDashboard();
+                if (currentScreen === 'agendas') {
+                    await carregarAgendas();
+                }
+
+            } catch (error) {
+                console.error('Erro ao criar agenda:', error);
+                mostrarAlerta('Erro ao criar agenda: ' + error.message, 'error');
+            } finally {
+                const botaoSalvar = event.target.querySelector('button[type="submit"]');
+                botaoSalvar.disabled = false;
+                botaoSalvar.textContent = 'Agendar';
+            }
+        }
+
+        async function handleNovaReserva(event) {
+            event.preventDefault();
+            
+            try {
+                const botaoSalvar = event.target.querySelector('button[type="submit"]');
+                botaoSalvar.disabled = true;
+                botaoSalvar.textContent = 'Reservando...';
+
+                const formData = {
+                    descricao: document.getElementById('reserva-descricao').value,
+                    categoria: document.getElementById('reserva-categoria').value,
+                    valor_reservado: parseFloat(document.getElementById('reserva-valor').value)
+                };
+
+                await apiCall('api/reservas', {
+                    method: 'POST',
+                    data: formData
+                });
+
+                mostrarAlerta('Reserva criada com sucesso!', 'success');
+                fecharModal('modal-nova-reserva');
+                
+                // Atualizar dados
+                if (currentScreen === 'reservas') {
+                    await carregarReservas();
+                }
+
+            } catch (error) {
+                console.error('Erro ao criar reserva:', error);
+                mostrarAlerta('Erro ao criar reserva: ' + error.message, 'error');
+            } finally {
+                const botaoSalvar = event.target.querySelector('button[type="submit"]');
+                botaoSalvar.disabled = false;
+                botaoSalvar.textContent = 'Reservar';
+            }
+        }
+
+        // ===== RENDERIZAÇÃO =====
+        function atualizarKPIs() {
+            if (!dashboard.kpis) return;
+
+            document.getElementById('saldo-mes').textContent = formatarMoeda(dashboard.kpis.saldoLiquido || 0);
+            document.getElementById('total-entradas').textContent = formatarMoeda(dashboard.kpis.totalEntradas || 0);
+            document.getElementById('total-saidas').textContent = formatarMoeda(dashboard.kpis.totalImpostos + dashboard.kpis.totalProLabore + dashboard.kpis.totalDespesas || 0);
+            document.getElementById('pro-labore').textContent = formatarMoeda(dashboard.kpis.totalProLabore || 0);
+        }
+
+        function renderizarProximosVencimentos(agendas) {
+            const container = document.getElementById('proximos-vencimentos');
+            const countElement = document.getElementById('count-proximos');
+            
+            countElement.textContent = agendas.length;
+
+            if (agendas.length === 0) {
+                container.innerHTML = '<p style="text-align: center; color: var(--text-light); padding: 20px;">Nenhum vencimento próximo</p>';
+                return;
+            }
+
+            const html = agendas.map(agenda => `
+                <div class="list-item" onclick="pagarAgenda('${agenda.agenda_id}')">
+                    <div class="item-content">
+                        <div class="item-title">${agenda.descricao}</div>
+                        <div class="item-subtitle">Vence em ${formatarDataRelativa(agenda.data_vencimento)}</div>
+                    </div>
+                    <div>
+                        <div class="item-value ${agenda.tipo === 'Receber' ? 'positive' : 'negative'}">
+                            ${formatarMoeda(agenda.valor_previsto)}
+                        </div>
+                        <div style="text-align: right; margin-top: 4px;">
+                            <span class="badge badge-warning">${agenda.tipo}</span>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+
+            container.innerHTML = html;
+        }
+
+        function renderizarAtrasados(agendas) {
+            const cardAtrasados = document.getElementById('card-atrasados');
+            const container = document.getElementById('lista-atrasados');
+            const countElement = document.getElementById('count-atrasados');
+            
+            countElement.textContent = agendas.length;
+
+            if (agendas.length === 0) {
+                cardAtrasados.style.display = 'none';
+                return;
+            }
+
+            cardAtrasados.style.display = 'block';
+
+            const html = agendas.map(agenda => `
+                <div class="list-item" onclick="pagarAgenda('${agenda.agenda_id}')">
+                    <div class="item-content">
+                        <div class="item-title">${agenda.descricao}</div>
+                        <div class="item-subtitle">Venceu em ${formatarData(agenda.data_vencimento)}</div>
+                    </div>
+                    <div>
+                        <div class="item-value ${agenda.tipo === 'Receber' ? 'positive' : 'negative'}">
+                            ${formatarMoeda(agenda.valor_previsto)}
+                        </div>
+                        <div style="text-align: right; margin-top: 4px;">
+                            <span class="badge badge-danger">Atrasado</span>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+
+            container.innerHTML = html;
+        }
+
+        function renderizarTransacoes(transacoesList) {
+            const container = document.getElementById('lista-transacoes');
+            
+            if (!transacoesList || transacoesList.length === 0) {
+                container.innerHTML = '<p style="text-align: center; color: var(--text-light); padding: 20px;">Nenhuma transação encontrada</p>';
+                return;
+            }
+
+            // Agrupar por mês
+            const transacoesPorMes = {};
+            transacoesList.forEach(transacao => {
+                const data = new Date(transacao.data);
+                const mesAno = `${data.getFullYear()}-${String(data.getMonth() + 1).padStart(2, '0')}`;
+                
+                if (!transacoesPorMes[mesAno]) {
+                    transacoesPorMes[mesAno] = [];
+                }
+                transacoesPorMes[mesAno].push(transacao);
+            });
+
+            let html = '';
+            Object.keys(transacoesPorMes).sort().reverse().forEach(mes => {
+                const [ano, mesNum] = mes.split('-');
+                const nomesMeses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+                const nomeMes = nomesMeses[parseInt(mesNum) - 1];
+                
+                html += `
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">${nomeMes}/${ano}</h3>
+                        </div>
+                        ${transacoesPorMes[mes].map(transacao => `
+                            <div class="list-item" onclick="editarTransacao('${transacao.id}')">
+                                <div class="item-content">
+                                    <div class="item-title">${transacao.descricao}</div>
+                                    <div class="item-subtitle">
+                                        ${formatarData(transacao.data)} • ${transacao.categoria} • ${transacao.forma_pagto}
+                                    </div>
+                                </div>
+                                <div>
+                                    <div class="item-value ${transacao.tipo === 'Entrada' ? 'positive' : 'negative'}">
+                                        ${formatarMoeda(transacao.valor)}
+                                    </div>
+                                    <div style="text-align: right; margin-top: 4px;">
+                                        <span class="badge ${getBadgeClass(transacao.status)}">${transacao.status}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html;
+        }
+
+        function renderizarAgendas(agendasList) {
+            const container = document.getElementById('lista-agendas');
+            
+            if (!agendasList || agendasList.length === 0) {
+                container.innerHTML = '<p style="text-align: center; color: var(--text-light); padding: 20px;">Nenhuma agenda encontrada</p>';
+                return;
+            }
+
+            // Separar por status
+            const abertas = agendasList.filter(a => a.status === 'Aberta' || a.status === 'Programada');
+            const pagas = agendasList.filter(a => a.status === 'Paga');
+            const atrasadas = agendasList.filter(a => a.status === 'Atrasada');
+
+            let html = '';
+
+            if (atrasadas.length > 0) {
+                html += renderizarGrupoAgendas('Em Atraso', atrasadas, 'danger');
+            }
+
+            if (abertas.length > 0) {
+                html += renderizarGrupoAgendas('Pendentes', abertas, 'warning');
+            }
+
+            if (pagas.length > 0) {
+                html += renderizarGrupoAgendas('Pagas', pagas, 'success');
+            }
+
+            container.innerHTML = html;
+        }
+
+        function renderizarGrupoAgendas(titulo, agendas, tipo) {
+            return `
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">${titulo}</h3>
+                        <span class="badge badge-${tipo}">${agendas.length}</span>
+                    </div>
+                    ${agendas.map(agenda => `
+                        <div class="list-item" onclick="${agenda.status !== 'Paga' ? `pagarAgenda('${agenda.agenda_id}')` : 'void(0)'}">
+                            <div class="item-content">
+                                <div class="item-title">${agenda.descricao}</div>
+                                <div class="item-subtitle">
+                                    ${formatarData(agenda.data_vencimento)} • ${agenda.tipo}
+                                    ${agenda.recorrencia !== 'Nenhuma' ? ` • ${agenda.recorrencia}` : ''}
+                                </div>
+                            </div>
+                            <div>
+                                <div class="item-value ${agenda.tipo === 'Receber' ? 'positive' : 'negative'}">
+                                    ${formatarMoeda(agenda.valor_previsto)}
+                                </div>
+                                <div style="text-align: right; margin-top: 4px;">
+                                    <span class="badge badge-${tipo}">${agenda.status}</span>
+                                </div>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+
+        function renderizarReservas(reservasList) {
+            const container = document.getElementById('lista-reservas');
+            
+            if (!reservasList || reservasList.length === 0) {
+                container.innerHTML = '<p style="text-align: center; color: var(--text-light); padding: 20px;">Nenhuma reserva encontrada</p>';
+                return;
+            }
+
+            const html = `
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Reservas Ativas</h3>
+                    </div>
+                    ${reservasList.map(reserva => `
+                        <div class="list-item" onclick="gerenciarReserva('${reserva.reserva_id}')">
+                            <div class="item-content">
+                                <div class="item-title">${reserva.descricao}</div>
+                                <div class="item-subtitle">
+                                    ${reserva.categoria} • Criada em ${formatarData(reserva.data_reserva)}
+                                </div>
+                            </div>
+                            <div>
+                                <div class="item-value positive">
+                                    ${formatarMoeda(reserva.saldo_reserva)}
+                                </div>
+                                <div style="text-align: right; margin-top: 4px; font-size: 12px; color: var(--text-light);">
+                                    de ${formatarMoeda(reserva.valor_reservado)}
+                                </div>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+
+            container.innerHTML = html;
+        }
+
+        function renderizarPlanilha(planilhaData) {
+            const container = document.getElementById('planilha-conteudo');
+            
+            const { meses, dados } = planilhaData;
+            const nomesMeses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+
+            // Cabeçalho da planilha
+            let html = `
+                <div style="overflow-x: auto;">
+                    <table style="width: 100%; min-width: 800px; font-size: 12px;">
+                        <thead>
+                            <tr style="background: var(--gray-100); font-weight: 600;">
+                                <th style="padding: 8px; text-align: left; min-width: 150px;">Seção</th>
+                                ${meses.map(mes => {
+                                    const [ano, mesNum] = mes.split('-');
+                                    return `<th style="padding: 8px; text-align: right; min-width: 80px;">${nomesMeses[parseInt(mesNum) - 1]}/${ano.slice(2)}</th>`;
+                                }).join('')}
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+
+            // Seção Entradas
+            html += criarLinhaSecao('ENTRADAS E INVESTIMENTOS', '#10B981', meses, dados, 'entradas');
+            html += criarLinhaSecao('→ Investimentos', '#059669', meses, dados, 'investimentos');
+            
+            // Seção Impostos
+            html += criarLinhaSecao('IMPOSTO E CONTADOR', '#EF4444', meses, dados, 'impostos');
+            
+            // Seção Pró-labore
+            html += criarLinhaSecao('PRÓ-LABORE', '#F59E0B', meses, dados, 'proLabore');
+            
+            // Seção Despesas
+            html += criarLinhaSecao('DESPESAS', '#6B7280', meses, dados, 'despesas');
+            
+            // Linha de saldo
+            html += `
+                <tr style="border-top: 2px solid var(--gray-300); background: var(--gray-50); font-weight: 700;">
+                    <td style="padding: 12px; color: var(--primary);">SALDO LÍQUIDO</td>
+                    ${meses.map(mes => {
+                        const d = dados[mes];
+                        const saldo = d.entradas - d.impostos - d.proLabore - d.despesas;
+                        return `<td style="padding: 12px; text-align: right; color: ${saldo >= 0 ? 'var(--success)' : 'var(--danger)'};">
+                            ${formatarMoeda(saldo)}
+                        </td>`;
+                    }).join('')}
+                </tr>
+            `;
+
+            html += `
+                        </tbody>
+                    </table>
+                </div>
+            `;
+
+            container.innerHTML = html;
+        }
+
+        function criarLinhaSecao(nome, cor, meses, dados, campo) {
+            return `
+                <tr style="background: ${cor}15;">
+                    <td style="padding: 8px; font-weight: 600; color: ${cor};">${nome}</td>
+                    ${meses.map(mes => {
+                        const valor = dados[mes][campo] || 0;
+                        return `<td style="padding: 8px; text-align: right;">${formatarMoeda(valor)}</td>`;
+                    }).join('')}
+                </tr>
+            `;
+        }
+
+        // ===== AÇÕES =====
+        async function pagarAgenda(agendaId) {
+            if (!confirm('Confirma o pagamento desta agenda?')) return;
+            
+            try {
+                await apiCall(`api/agendas/${agendaId}/pagar`, { method: 'POST' });
+                
+                mostrarAlerta('Agenda paga com sucesso!', 'success');
+                await carregarDashboard();
+                
+                if (currentScreen === 'agendas') {
+                    await carregarAgendas();
+                }
+                
+            } catch (error) {
+                console.error('Erro ao pagar agenda:', error);
+                mostrarAlerta('Erro ao pagar agenda: ' + error.message, 'error');
+            }
+        }
+
+        async function uploadComprovante(transacaoId, arquivo) {
+            // Simular upload - na implementação real, usar FormData
+            console.log('Upload de comprovante:', transacaoId, arquivo.name);
+            // TODO: Implementar upload real via Google Drive API
+        }
+
+        // ===== UTILITÁRIOS =====
+        function preencherSelectCategorias() {
+            const selectCategoria = document.getElementById('transacao-categoria');
+            const filtroCategoria = document.getElementById('filtro-categoria');
+            
+            selectCategoria.innerHTML = '<option value="">Selecionar</option>';
+            filtroCategoria.innerHTML = '<option value="">Todas categorias</option>';
+            
+            categorias.forEach(cat => {
+                const option = `<option value="${cat.categoria}">${cat.categoria}</option>`;
+                selectCategoria.innerHTML += option;
+                filtroCategoria.innerHTML += option;
+            });
+        }
+
+        function atualizarCategorias() {
+            const tipo = document.getElementById('transacao-tipo').value;
+            const selectCategoria = document.getElementById('transacao-categoria');
+            
+            selectCategoria.innerHTML = '<option value="">Selecionar</option>';
+            
+            const categoriasFiltradas = categorias.filter(cat => {
+                if (!tipo) return true;
+                return cat.tipo_padrao === tipo || cat.tipo_padrao === 'Transferência';
+            });
+            
+            categoriasFiltradas.forEach(cat => {
+                const option = document.createElement('option');
+                option.value = cat.categoria;
+                option.textContent = cat.categoria;
+                selectCategoria.appendChild(option);
+            });
+        }
+
+        function preencherFiltroMeses() {
+            const filtroMes = document.getElementById('filtro-mes');
+            const hoje = new Date();
+            
+            for (let i = 0; i < 12; i++) {
+                const data = new Date(hoje.getFullYear(), hoje.getMonth() - i, 1);
+                const yyyymm = `${data.getFullYear()}-${String(data.getMonth() + 1).padStart(2, '0')}`;
+                const nomeMes = data.toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' });
+                
+                const option = document.createElement('option');
+                option.value = yyyymm;
+                option.textContent = nomeMes;
+                filtroMes.appendChild(option);
+            }
+        }
+
+        function filtrarTransacoes() {
+            const filtroMes = document.getElementById('filtro-mes').value;
+            const filtroCategoria = document.getElementById('filtro-categoria').value;
+            const filtroStatus = document.getElementById('filtro-status').value;
+            const busca = document.getElementById('busca-transacoes').value.toLowerCase();
+            
+            let transacoesFiltradas = [...transacoes];
+            
+            if (filtroMes) {
+                transacoesFiltradas = transacoesFiltradas.filter(t => {
+                    const dataTransacao = new Date(t.data);
+                    const mesTransacao = `${dataTransacao.getFullYear()}-${String(dataTransacao.getMonth() + 1).padStart(2, '0')}`;
+                    return mesTransacao === filtroMes;
+                });
+            }
+            
+            if (filtroCategoria) {
+                transacoesFiltradas = transacoesFiltradas.filter(t => t.categoria === filtroCategoria);
+            }
+            
+            if (filtroStatus) {
+                transacoesFiltradas = transacoesFiltradas.filter(t => t.status === filtroStatus);
+            }
+            
+            if (busca) {
+                transacoesFiltradas = transacoesFiltradas.filter(t => 
+                    t.descricao.toLowerCase().includes(busca)
+                );
+            }
+            
+            renderizarTransacoes(transacoesFiltradas);
+        }
+
+        function formatarMoeda(valor) {
+            return new Intl.NumberFormat('pt-BR', {
+                style: 'currency',
+                currency: 'BRL'
+            }).format(valor || 0);
+        }
+
+        function formatarData(data) {
+            return new Date(data).toLocaleDateString('pt-BR');
+        }
+
+        function formatarDataRelativa(data) {
+            const hoje = new Date();
+            const dataVencimento = new Date(data);
+            const diffTime = dataVencimento - hoje;
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            
+            if (diffDays === 0) return 'hoje';
+            if (diffDays === 1) return 'amanhã';
+            if (diffDays > 1) return `${diffDays} dias`;
+            if (diffDays === -1) return 'ontem';
+            return `${Math.abs(diffDays)} dias atrás`;
+        }
+
+        function getBadgeClass(status) {
+            const classes = {
+                'Pago': 'badge-success',
+                'Pendente': 'badge-warning',
+                'Cancelado': 'badge-danger',
+                'Aberta': 'badge-info',
+                'Programada': 'badge-info',
+                'Paga': 'badge-success',
+                'Atrasada': 'badge-danger'
+            };
+            return classes[status] || 'badge-info';
+        }
+
+        function mostrarAlerta(mensagem, tipo = 'info') {
+            // Remove alertas existentes
+            const alertasExistentes = document.querySelectorAll('.alert');
+            alertasExistentes.forEach(alerta => alerta.remove());
+            
+            const alerta = document.createElement('div');
+            alerta.className = `alert alert-${tipo === 'error' ? 'error' : tipo}`;
+            alerta.textContent = mensagem;
+            
+            // Inserir no topo do conteúdo principal
+            const mainContent = document.getElementById('main-content');
+            mainContent.insertBefore(alerta, mainContent.firstChild);
+            
+            // Remover automaticamente após 5 segundos
+            setTimeout(() => {
+                alerta.remove();
+            }, 5000);
+        }
+
+        function showNotifications() {
+            // TODO: Implementar modal de notificações
+            mostrarAlerta('Funcionalidade em desenvolvimento', 'warning');
+        }
+
+        function showMenu() {
+            // TODO: Implementar menu com configurações
+            mostrarAlerta('Menu em desenvolvimento', 'warning');
+        }
+
+        function editarTransacao(transacaoId) {
+            // TODO: Implementar edição de transação
+            console.log('Editar transação:', transacaoId);
+            mostrarAlerta('Edição em desenvolvimento', 'warning');
+        }
+
+        function gerenciarReserva(reservaId) {
+            // TODO: Implementar gerenciamento de reserva
+            console.log('Gerenciar reserva:', reservaId);
+            mostrarAlerta('Gerenciamento de reserva em desenvolvimento', 'warning');
+        }
+
+        async function atualizarPlanilha() {
+            try {
+                await carregarPlanilha();
+                mostrarAlerta('Planilha atualizada!', 'success');
+            } catch (error) {
+                mostrarAlerta('Erro ao atualizar planilha', 'error');
+            }
+        }
+
+        // ===== SERVICE WORKER (PWA) =====
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function() {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(function(registration) {
+                        console.log('SW registrado:', registration);
+                    })
+                    .catch(function(error) {
+                        console.log('Erro no SW:', error);
+                    });
+            });
+        }
+
+        // ===== ATALHOS DE TECLADO =====
+        document.addEventListener('keydown', function(e) {
+            // Ctrl/Cmd + N = Nova transação
+            if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
+                e.preventDefault();
+                showNovaTransacao();
+            }
+            
+            // ESC = Fechar modais
+            if (e.key === 'Escape') {
+                const modalsAbertos = document.querySelectorAll('.modal.show');
+                modalsAbertos.forEach(modal => modal.classList.remove('show'));
+            }
+        });
+
+        // ===== CACHE LOCAL =====
+        const CACHE_KEYS = {
+            CATEGORIAS: 'categorias_cache',
+            DASHBOARD: 'dashboard_cache'
+        };
+
+        function salvarCache(key, data) {
+            try {
+                const cacheData = {
+                    data: data,
+                    timestamp: Date.now()
+                };
+                localStorage.setItem(key, JSON.stringify(cacheData));
+            } catch (error) {
+                console.warn('Erro ao salvar cache:', error);
+            }
+        }
+
+        function obterCache(key, maxAge = 5 * 60 * 1000) { // 5 minutos por padrão
+            try {
+                const cached = localStorage.getItem(key);
+                if (!cached) return null;
+                
+                const cacheData = JSON.parse(cached);
+                const isExpired = (Date.now() - cacheData.timestamp) > maxAge;
+                
+                if (isExpired) {
+                    localStorage.removeItem(key);
+                    return null;
+                }
+                
+                return cacheData.data;
+            } catch (error) {
+                console.warn('Erro ao obter cache:', error);
+                return null;
+            }
+        }
+
+        function limparCache() {
+            Object.values(CACHE_KEYS).forEach(key => {
+                localStorage.removeItem(key);
+            });
+        }
+
+        // ===== MELHORIAS DE UX =====
+        
+        // Auto-save de formulários (draft)
+        function salvarRascunho(formId) {
+            const form = document.getElementById(formId);
+            if (!form) return;
+            
+            const formData = new FormData(form);
+            const data = {};
+            
+            for (let [key, value] of formData.entries()) {
+                data[key] = value;
+            }
+            
+            localStorage.setItem(`draft_${formId}`, JSON.stringify(data));
+        }
+
+        function carregarRascunho(formId) {
+            const draft = localStorage.getItem(`draft_${formId}`);
+            if (!draft) return;
+            
+            try {
+                const data = JSON.parse(draft);
+                const form = document.getElementById(formId);
+                
+                Object.keys(data).forEach(key => {
+                    const input = form.querySelector(`[name="${key}"], #${key}`);
+                    if (input) {
+                        input.value = data[key];
+                    }
+                });
+            } catch (error) {
+                console.warn('Erro ao carregar rascunho:', error);
+            }
+        }
+
+        function limparRascunho(formId) {
+            localStorage.removeItem(`draft_${formId}`);
+        }
+
+        // Feedback visual para ações
+        function adicionarFeedbackVisual(elemento, tipo = 'success') {
+            elemento.classList.add(`feedback-${tipo}`);
+            setTimeout(() => {
+                elemento.classList.remove(`feedback-${tipo}`);
+            }, 1000);
+        }
+
+        // Lazy loading para listas grandes
+        function implementarLazyLoading(containerId, items, renderFunction, itemsPerPage = 20) {
+            const container = document.getElementById(containerId);
+            let currentPage = 0;
+            let isLoading = false;
+            
+            function renderPage() {
+                if (isLoading) return;
+                isLoading = true;
+                
+                const start = currentPage * itemsPerPage;
+                const end = start + itemsPerPage;
+                const pageItems = items.slice(start, end);
+                
+                if (pageItems.length === 0) {
+                    isLoading = false;
+                    return;
+                }
+                
+                const html = renderFunction(pageItems);
+                
+                if (currentPage === 0) {
+                    container.innerHTML = html;
+                } else {
+                    container.innerHTML += html;
+                }
+                
+                currentPage++;
+                isLoading = false;
+            }
+            
+            // Observer para scroll infinito
+            const observer = new IntersectionObserver((entries) => {
+                if (entries[0].isIntersecting) {
+                    renderPage();
+                }
+            });
+            
+            // Adicionar elemento sentinel
+            const sentinel = document.createElement('div');
+            sentinel.style.height = '1px';
+            container.appendChild(sentinel);
+            observer.observe(sentinel);
+            
+            // Renderizar primeira página
+            renderPage();
+        }
+
+        // ===== ANALYTICS SIMPLES =====
+        function trackEvent(categoria, acao, label = '') {
+            console.log(`Analytics: ${categoria} - ${acao} - ${label}`);
+            // TODO: Integrar com Google Analytics ou similar
+        }
+
+        // Track das principais ações
+        window.addEventListener('load', () => trackEvent('App', 'Load'));
+        
+        // Override das principais funções para adicionar tracking
+        const originalShowNovaTransacao = showNovaTransacao;
+        showNovaTransacao = function() {
+            trackEvent('Transacao', 'NovaTransacao', 'Modal');
+            return originalShowNovaTransacao();
+        };
+
+        // ===== VALIDAÇÕES DE FORMULÁRIO =====
+        function validarFormulario(formId) {
+            const form = document.getElementById(formId);
+            const inputs = form.querySelectorAll('input[required], select[required]');
+            let valido = true;
+            
+            inputs.forEach(input => {
+                const errorElement = input.parentNode.querySelector('.error');
+                
+                if (errorElement) {
+                    errorElement.remove();
+                }
+                
+                if (!input.value.trim()) {
+                    mostrarErroInput(input, 'Campo obrigatório');
+                    valido = false;
+                } else if (input.type === 'email' && !validarEmail(input.value)) {
+                    mostrarErroInput(input, 'Email inválido');
+                    valido = false;
+                } else if (input.type === 'number' && parseFloat(input.value) < 0) {
+                    mostrarErroInput(input, 'Valor não pode ser negativo');
+                    valido = false;
+                }
+            });
+            
+            return valido;
+        }
+
+        function mostrarErroInput(input, mensagem) {
+            const error = document.createElement('div');
+            error.className = 'error';
+            error.textContent = mensagem;
+            input.parentNode.appendChild(error);
+            input.focus();
+        }
+
+        function validarEmail(email) {
+            const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            return regex.test(email);
+        }
+
+        // ===== MODO OFFLINE =====
+        let isOnline = navigator.onLine;
+        
+        window.addEventListener('online', function() {
+            isOnline = true;
+            mostrarAlerta('Conexão restaurada', 'success');
+            sincronizarDadosOffline();
+        });
+        
+        window.addEventListener('offline', function() {
+            isOnline = false;
+            mostrarAlerta('Você está offline. As alterações serão salvas localmente.', 'warning');
+        });
+
+        function sincronizarDadosOffline() {
+            // TODO: Implementar sincronização de dados offline
+            console.log('Sincronizando dados offline...');
+        }
+
+        // ===== CONFIGURAÇÕES DO APP =====
+        const APP_CONFIG = {
+            VERSION: '1.0.0',
+            CACHE_VERSION: 'v1',
+            MAX_UPLOAD_SIZE: 5 * 1024 * 1024, // 5MB
+            ITEMS_PER_PAGE: 20,
+            NOTIFICATION_INTERVAL: 60000 // 1 minuto
+        };
+
+        // Verificar versão e limpar cache se necessário
+        function verificarVersao() {
+            const versaoSalva = localStorage.getItem('app_version');
+            
+            if (versaoSalva !== APP_CONFIG.VERSION) {
+                limparCache();
+                localStorage.setItem('app_version', APP_CONFIG.VERSION);
+                console.log(`App atualizado para versão ${APP_CONFIG.VERSION}`);
+            }
+        }
+
+        // Executar verificação na inicialização
+        verificarVersao();
+
+        console.log('Controle Financeiro PJ v' + APP_CONFIG.VERSION + ' inicializado');
+    </script>
+</body>
+</html>
