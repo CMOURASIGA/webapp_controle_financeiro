@@ -1,0 +1,29 @@
+    <!-- Modal Menu/Configurações -->
+    <div id="modal-menu" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Menu</h2>
+                <button class="close-btn" onclick="fecharModal('modal-menu')">&times;</button>
+            </div>
+            <div class="list-item" onclick="mostrarGerenciarCategorias()">
+                <div class="item-content">
+                    <div class="item-title">Gerenciar Categorias</div>
+                    <div class="item-subtitle">Adicionar, editar ou desativar categorias</div>
+                </div>
+            </div>
+            <div class="list-item" onclick="mostrarConfiguracoes()">
+                <div class="item-content">
+                    <div class="item-title">Configurações</div>
+                    <div class="item-subtitle">Configurar planilha e outras opções</div>
+                </div>
+            </div>
+             <div class="list-item" onclick="executarSetup()">
+                <div class="item-content">
+                    <div class="item-title">Executar Setup Inicial</div>
+                    <div class="item-subtitle">Criar planilha e configurações iniciais (usar apenas uma vez)</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
