@@ -2,19 +2,31 @@
 
 // Configurações globais
 const CONFIG = {
-  SHEET_ID: PropertiesService.getScriptProperties().getProperty('1JBux-TB-5U9nbQV3rDnEybGxeIaiFggWKw2FKAy64po') || '',
-  PASTA_DRIVE_ID: PropertiesService.getScriptProperties().getProperty('1DVKACxn8ZMil2lK_l5SdgJVjXfcF5awQ') || '',
-  EMAIL_PADRAO: PropertiesService.getScriptProperties().getProperty('cmourasiga@gmail.com') || '',
+  SHEET_ID: PropertiesService.getScriptProperties().getProperty('SHEET_ID') || '',
+  PASTA_DRIVE_ID: PropertiesService.getScriptProperties().getProperty('PASTA_DRIVE_ID') || '',
+  EMAIL_PADRAO: PropertiesService.getScriptProperties().getProperty('EMAIL_PADRAO') || '',
   WEBHOOK_URL: PropertiesService.getScriptProperties().getProperty('WEBHOOK_URL') || ''
 };
 
+const DEFAULT_TIMEZONE = 'America/Sao_Paulo';
 
-// ===== FUNÇÕES PRINCIPAIS =====
+// ===== INICIALIZAÇÃO E SETUP =====
 
 function doGet(e) {
   try {
     const path = e.parameter.path || '';
     const params = e.parameter;
+    
+    // Verificar se usuário está logado
+    const user = Session.getActiveUser();
+    if (!user.getEmail()) {
+      return HtmlService.createHtmlOutput('Acesso não autorizado. Faça login com sua conta Google.');
+    }
+    
+    // Verificar e criar estrutura se necessário
+    if (!CONFIG.SHEET_ID) {
+      return criarEstruturainicial();
+    }
     
     // Rotas GET
     if (path.startsWith('api/mes/')) {
@@ -42,30 +54,55 @@ function doGet(e) {
       return apiResponse(getCategorias());
     }
     
+    if (path === 'api/setup/verificar') {
+      return apiResponse(verificarSetup());
+    }
+    
     // Servir HTML do frontend
     return HtmlService.createTemplateFromFile('index')
       .evaluate()
       .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
     
   } catch (error) {
+    Logger.log('Erro no doGet: ' + error.toString());
     return apiResponse(null, error.message);
   }
 }
 
 function doPost(e) {
   try {
-    const route = e.parameter.v;
-    const data = JSON.parse(e.postData.contents);
+    const user = Session.getActiveUser();
+    if (!user.getEmail()) {
+      throw new Error('Acesso não autorizado');
+    }
+    
+    const route = e.parameter.path || e.parameter.v || '';
+    let data = {};
+    
+    try {
+      data = JSON.parse(e.postData.contents || '{}');
+    } catch (parseError) {
+      Logger.log('Erro ao parsear JSON: ' + parseError.toString());
+      throw new Error('Dados JSON inválidos');
+    }
+    
     let result;
 
-    if (route === 'transacoes') {
+    if (route === 'api/transacoes' || route === 'transacoes') {
       result = criarTransacao(data);
-    } else if (route === 'agendas') {
+    } else if (route === 'api/agendas' || route === 'agendas') {
       result = criarAgenda(data);
-    } else if (route === 'reservas') {
+    } else if (route === 'api/reservas' || route === 'reservas') {
       result = criarReserva(data);
+    } else if (route === 'api/categorias' || route === 'categorias') {
+      result = criarCategoria(data);
+    } else if (route === 'api/setup/inicial' || route === 'setup/inicial') {
+      result = setupInicial();
+    } else if (route.match(/^api\/agendas\/[^/]+\/pagar$/)) {
+      const agendaId = route.split('/')[2];
+      result = pagarAgenda(agendaId);
     } else {
-      throw new Error('Rota não encontrada');
+      throw new Error('Rota não encontrada: ' + route);
     }
 
     return ContentService.createTextOutput(JSON.stringify({ status: 'success', data: result }))
@@ -75,6 +112,84 @@ function doPost(e) {
     return ContentService.createTextOutput(JSON.stringify({ status: 'error', message: error.toString() }))
       .setMimeType(ContentService.MimeType.JSON);
   }
+}
+
+function doDelete(e) {
+  try {
+    const user = Session.getActiveUser();
+    if (!user.getEmail()) {
+      throw new Error('Acesso não autorizado');
+    }
+    
+    const route = e.parameter.path || e.parameter.v || '';
+    let result;
+
+    if (route === 'api/categorias') {
+      const nome = e.parameter.categoria;
+      result = deletarCategoria(nome);
+    } else {
+      throw new Error('Rota não encontrada');
+    }
+
+    return ContentService.createTextOutput(JSON.stringify({ status: 'success', data: result }))
+      .setMimeType(ContentService.MimeType.JSON);
+  } catch (error) {
+    Logger.log('Erro no doDelete: ' + error.toString());
+    return ContentService.createTextOutput(JSON.stringify({ status: 'error', message: error.toString() }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+// ===== FUNÇÕES DE SETUP =====
+
+function criarEstruturainicial() {
+  try {
+    const sheetId = setupInicial();
+    
+    // Salvar configurações
+    PropertiesService.getScriptProperties().setProperties({
+      'SHEET_ID': sheetId,
+      'EMAIL_PADRAO': Session.getActiveUser().getEmail()
+    });
+    
+    return HtmlService.createHtmlOutput(`
+      <h2>Setup Inicial Concluído!</h2>
+      <p>Planilha criada com ID: ${sheetId}</p>
+      <p><a href="${SpreadsheetApp.openById(sheetId).getUrl()}" target="_blank">Abrir Planilha</a></p>
+      <p><a href="${ScriptApp.getService().getUrl()}" target="_blank">Acessar Sistema</a></p>
+    `);
+  } catch (error) {
+    return HtmlService.createHtmlOutput(`
+      <h2>Erro no Setup</h2>
+      <p>${error.message}</p>
+    `);
+  }
+}
+
+function verificarSetup() {
+  const user = Session.getActiveUser();
+  const sheetId = CONFIG.SHEET_ID;
+  
+  let planilhaExiste = false;
+  let planilhaUrl = '';
+  
+  if (sheetId) {
+    try {
+      const ss = SpreadsheetApp.openById(sheetId);
+      planilhaExiste = true;
+      planilhaUrl = ss.getUrl();
+    } catch (error) {
+      planilhaExiste = false;
+    }
+  }
+  
+  return {
+    usuario: user.getEmail(),
+    planilhaConfigurada: !!sheetId,
+    planilhaExiste: planilhaExiste,
+    planilhaUrl: planilhaUrl,
+    timezone: Session.getScriptTimeZone()
+  };
 }
 
 // ===== FUNÇÕES DA API =====
@@ -130,16 +245,76 @@ function getDashboard() {
   return dashboard;
 }
 
+function getTransacoes(params) {
+  const ss = SpreadsheetApp.openById(CONFIG.SHEET_ID);
+  const sheet = ss.getSheetByName('Transacoes');
+  
+  const data = sheet.getDataRange().getValues();
+  const headers = data[0];
+  
+  return data.slice(1).map(row => {
+    const obj = {};
+    headers.forEach((header, i) => obj[header] = row[i]);
+    return obj;
+  });
+}
+
+function getAgendas(params) {
+  const ss = SpreadsheetApp.openById(CONFIG.SHEET_ID);
+  const sheet = ss.getSheetByName('Agendas');
+  
+  const data = sheet.getDataRange().getValues();
+  const headers = data[0];
+  
+  return data.slice(1).map(row => {
+    const obj = {};
+    headers.forEach((header, i) => obj[header] = row[i]);
+    return obj;
+  });
+}
+
+function getReservas() {
+  const ss = SpreadsheetApp.openById(CONFIG.SHEET_ID);
+  const sheet = ss.getSheetByName('Reservas');
+  
+  const data = sheet.getDataRange().getValues();
+  const headers = data[0];
+  
+  return data.slice(1).map(row => {
+    const obj = {};
+    headers.forEach((header, i) => obj[header] = row[i]);
+    return obj;
+  });
+}
+
+function getCategorias() {
+  const ss = SpreadsheetApp.openById(CONFIG.SHEET_ID);
+  const sheet = ss.getSheetByName('Categorias');
+  
+  const data = sheet.getDataRange().getValues();
+  const headers = data[0];
+  
+  return data.slice(1).map(row => {
+    const obj = {};
+    headers.forEach((header, i) => obj[header] = row[i]);
+    return obj;
+  }).filter(cat => cat.ativo !== false);
+}
+
 function criarTransacao(data) {
   const ss = SpreadsheetApp.openById(CONFIG.SHEET_ID);
   const sheet = ss.getSheetByName('Transacoes');
   
+  const id = Utilities.getUuid();
   const agora = new Date();
-  const timezone = Session.getScriptTimeZone();
+  const timezone = data.timezone || DEFAULT_TIMEZONE;
+
+  // Converter data do formato ISO para Date considerando timezone
+  const dataTransacao = new Date(data.data + 'T12:00:00');
 
   const novaTransacao = [
     id,
-    new Date(data.data), // A data do formulário já vem correta
+    dataTransacao,
     data.tipo,
     data.categoria,
     data.descricao,
@@ -170,14 +345,17 @@ function criarAgenda(data) {
   
   const agendaId = Utilities.getUuid();
   const agora = new Date();
-  const timezone = Session.getScriptTimeZone();
+  const timezone = data.timezone || DEFAULT_TIMEZONE;
+  
+  // Converter data do formato ISO para Date
+  const dataVencimento = new Date(data.data_vencimento + 'T12:00:00');
   
   const novaAgenda = [
     agendaId,
     data.tipo,
     data.descricao,
     Number(data.valor_previsto),
-    new Date(data.data_vencimento),
+    dataVencimento,
     data.recorrencia || 'Nenhuma',
     'Aberta',
     data.notificar_em || '7;3;1',
@@ -204,7 +382,7 @@ function criarReserva(data) {
   
   const reservaId = Utilities.getUuid();
   const agora = new Date();
-  const timezone = Session.getScriptTimeZone();
+  const timezone = data.timezone || DEFAULT_TIMEZONE;
   
   const novaReserva = [
     reservaId,
@@ -220,6 +398,42 @@ function criarReserva(data) {
   logAuditoria('CREATE', 'Reserva', reservaId, null, novaReserva, Session.getActiveUser().getEmail());
   
   return { reservaId, success: true };
+}
+
+function criarCategoria(data) {
+  const ss = SpreadsheetApp.openById(CONFIG.SHEET_ID);
+  const sheet = ss.getSheetByName('Categorias');
+
+  const novaCategoria = [
+    data.categoria,
+    data.tipo_padrao || '',
+    data.centro_custo || '',
+    true
+  ];
+
+  sheet.appendRow(novaCategoria);
+  
+  logAuditoria('CREATE', 'Categoria', data.categoria, null, novaCategoria, Session.getActiveUser().getEmail());
+
+  return { success: true };
+}
+
+function deletarCategoria(nome) {
+  const ss = SpreadsheetApp.openById(CONFIG.SHEET_ID);
+  const sheet = ss.getSheetByName('Categorias');
+
+  const data = sheet.getDataRange().getValues();
+  const rowIndex = data.findIndex(r => r[0] === nome);
+
+  if (rowIndex === -1) {
+    throw new Error('Categoria não encontrada');
+  }
+
+  sheet.getRange(rowIndex + 1, 4).setValue(false);
+  
+  logAuditoria('DELETE', 'Categoria', nome, data[rowIndex], [nome, '', '', false], Session.getActiveUser().getEmail());
+
+  return { success: true };
 }
 
 function pagarAgenda(agendaId) {
@@ -238,14 +452,15 @@ function pagarAgenda(agendaId) {
   
   // Criar transação automaticamente
   const transacaoData = {
-    data: new Date(),
+    data: new Date().toISOString().split('T')[0],
     tipo: agenda[1] === 'Pagar' ? 'Saída' : 'Entrada',
     categoria: 'Pagamento Agendado',
     descricao: agenda[2],
     valor: agenda[3],
     forma_pagto: 'Outros',
     status: 'Pago',
-    vinculo_agenda_id: agendaId
+    vinculo_agenda_id: agendaId,
+    timezone: DEFAULT_TIMEZONE
   };
   
   criarTransacao(transacaoData);
@@ -258,6 +473,19 @@ function pagarAgenda(agendaId) {
 }
 
 // ===== FUNÇÕES DE APOIO =====
+
+function atualizarStatusAgenda(agendaId, status) {
+  const ss = SpreadsheetApp.openById(CONFIG.SHEET_ID);
+  const sheet = ss.getSheetByName('Agendas');
+  
+  const data = sheet.getDataRange().getValues();
+  const rowIndex = data.findIndex(row => row[0] === agendaId);
+  
+  if (rowIndex > 0) {
+    sheet.getRange(rowIndex + 1, 7).setValue(status);
+    sheet.getRange(rowIndex + 1, 11).setValue(new Date());
+  }
+}
 
 function calcularTotaisMes(transacoes) {
   const totais = {
@@ -331,91 +559,9 @@ function getAtrasados() {
   });
 }
 
-function uploadComprovante(fileBlob, transacaoId) {
-  if (!CONFIG.PASTA_DRIVE_ID) {
-    throw new Error('PASTA_DRIVE_ID não configurada');
-  }
-  
-  const pasta = DriveApp.getFolderById(CONFIG.PASTA_DRIVE_ID);
-  const arquivo = pasta.createFile(fileBlob);
-  const url = arquivo.getUrl();
-  
-  // Atualizar transação com URL do comprovante
-  const ss = SpreadsheetApp.openById(CONFIG.SHEET_ID);
-  const sheet = ss.getSheetByName('Transacoes');
-  const data = sheet.getDataRange().getValues();
-  
-  const rowIndex = data.findIndex(row => row[0] === transacaoId);
-  if (rowIndex > 0) {
-    sheet.getRange(rowIndex + 1, 10).setValue(url); // coluna comprovante_url
-  }
-  
-  return url;
-}
-
-// ===== TRIGGERS E NOTIFICAÇÕES =====
-
-function verificarVencimentosDiarios() {
-  try {
-    const agendas = getProximosVencimentos();
-    const atrasados = getAtrasados();
-    
-    // Marcar como atrasado
-    if (atrasados.length > 0) {
-      marcarComoAtrasado(atrasados);
-    }
-    
-    // Enviar notificações
-    if (agendas.length > 0 || atrasados.length > 0) {
-      enviarNotificacoes(agendas, atrasados);
-    }
-    
-  } catch (error) {
-    logError('verificarVencimentosDiarios', error.message);
-  }
-}
-
-function enviarNotificacoes(proximos, atrasados) {
-  const hoje = new Date().toLocaleDateString('pt-BR');
-  
-  let html = `
-    <h2>Resumo Financeiro - ${hoje}</h2>
-    
-    <h3>📅 Próximos Vencimentos (7 dias)</h3>
-    <ul>
-      ${proximos.map(a => `<li>${a.descricao} - R$ ${a.valor_previsto} - ${new Date(a.data_vencimento).toLocaleDateString('pt-BR')}</li>`).join('')}
-    </ul>
-    
-    <h3>⚠️ Em Atraso</h3>
-    <ul>
-      ${atrasados.map(a => `<li>${a.descricao} - R$ ${a.valor_previsto} - ${new Date(a.data_vencimento).toLocaleDateString('pt-BR')}</li>`).join('')}
-    </ul>
-  `;
-  
-  // Email
-  if (CONFIG.EMAIL_PADRAO) {
-    GmailApp.sendEmail(
-      CONFIG.EMAIL_PADRAO,
-      `Resumo Financeiro PJ - ${hoje}`,
-      '',
-      { htmlBody: html }
-    );
-  }
-  
-  // Webhook (opcional)
-  if (CONFIG.WEBHOOK_URL) {
-    const payload = {
-      proximos: proximos.length,
-      atrasados: atrasados.length,
-      data: hoje
-    };
-    
-    UrlFetchApp.fetch(CONFIG.WEBHOOK_URL, {
-      method: 'POST',
-      contentType: 'application/json',
-      payload: JSON.stringify(payload)
-    });
-  }
+function gerarParcelasRecorrentes(dadosOriginais, agendaIdOriginal) {
+  // TODO: Implementar geração de parcelas recorrentes
+  console.log('Gerando parcelas para:', agendaIdOriginal);
 }
 
 // ===== AUDITORIA E LOGS =====
@@ -472,25 +618,11 @@ function apiResponse(data, error = null) {
     .setMimeType(ContentService.MimeType.JSON);
 }
 
-function getCategorias() {
-  const ss = SpreadsheetApp.openById(CONFIG.SHEET_ID);
-  const sheet = ss.getSheetByName('Categorias');
-  
-  const data = sheet.getDataRange().getValues();
-  const headers = data[0];
-  
-  return data.slice(1).map(row => {
-    const obj = {};
-    headers.forEach((header, i) => obj[header] = row[i]);
-    return obj;
-  }).filter(cat => cat.ativo);
-}
-
 // ===== CONFIGURAÇÃO INICIAL =====
 
 function setupInicial() {
   // Criar planilha modelo
-  criarPlanilhaModelo();
+  const sheetId = criarPlanilhaModelo();
   
   // Configurar triggers
   ScriptApp.newTrigger('verificarVencimentosDiarios')
@@ -500,10 +632,12 @@ function setupInicial() {
     .create();
     
   console.log('Setup inicial concluído!');
+  return sheetId;
 }
 
 function criarPlanilhaModelo() {
-  const ss = SpreadsheetApp.create('Controle Financeiro PJ');
+  const user = Session.getActiveUser();
+  const ss = SpreadsheetApp.create(`Controle Financeiro PJ - ${user.getEmail()}`);
   
   // Aba Transacoes
   const transacoesSheet = ss.insertSheet('Transacoes');
@@ -553,6 +687,21 @@ function criarPlanilhaModelo() {
     ['Saldo Líquido', '=B2-B3-B4-B5']
   ]);
   
+  // Aba Config
+  const configSheet = ss.insertSheet('Config');
+  configSheet.getRange('A1:B10').setValues([
+    ['Configuração', 'Valor'],
+    ['SHEET_ID', ss.getId()],
+    ['EMAIL_PADRAO', user.getEmail()],
+    ['TIMEZONE', DEFAULT_TIMEZONE],
+    ['VERSAO', '1.0.0'],
+    ['CRIADO_EM', new Date()],
+    ['CRIADO_POR', user.getEmail()],
+    ['PASTA_DRIVE_ID', ''],
+    ['WEBHOOK_URL', ''],
+    ['LAST_UPDATE', new Date()]
+  ]);
+  
   // Abas de Log e Erros
   const logSheet = ss.insertSheet('Log');
   logSheet.getRange('A1:G1').setValues([['timestamp', 'acao', 'entidade', 'entity_id', 'antes', 'depois', 'usuario']]);
@@ -564,4 +713,40 @@ function criarPlanilhaModelo() {
   console.log('SHEET_ID:', ss.getId());
   
   return ss.getId();
+}
+
+// ===== TRIGGERS E NOTIFICAÇÕES =====
+
+function verificarVencimentosDiarios() {
+  try {
+    const agendas = getProximosVencimentos();
+    const atrasados = getAtrasados();
+    
+    // Marcar como atrasado
+    if (atrasados.length > 0) {
+      marcarComoAtrasado(atrasados);
+    }
+    
+    // Enviar notificações
+    if (agendas.length > 0 || atrasados.length > 0) {
+      enviarNotificacoes(agendas, atrasados);
+    }
+    
+  } catch (error) {
+    logError('verificarVencimentosDiarios', error.message);
+  }
+}
+
+function marcarComoAtrasado(agendas) {
+  const ss = SpreadsheetApp.openById(CONFIG.SHEET_ID);
+  const sheet = ss.getSheetByName('Agendas');
+  
+  const data = sheet.getDataRange().getValues();
+  
+  agendas.forEach(agenda => {
+    const rowIndex = data.findIndex(row => row[0] === agenda.agenda_id);
+    if (rowIndex > 0) {
+      sheet.getRange(rowIndex + 1, 7).setValue('Atrasada');
+    }
+  });
 }
