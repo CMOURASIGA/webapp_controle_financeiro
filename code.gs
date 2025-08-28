@@ -2,9 +2,9 @@
 
 // Configurações globais
 const CONFIG = {
-  SHEET_ID: PropertiesService.getScriptProperties().getProperty('SHEET_ID') || '',
-  PASTA_DRIVE_ID: PropertiesService.getScriptProperties().getProperty('PASTA_DRIVE_ID') || '',
-  EMAIL_PADRAO: PropertiesService.getScriptProperties().getProperty('EMAIL_PADRAO') || '',
+  SHEET_ID: PropertiesService.getScriptProperties().getProperty('1JBux-TB-5U9nbQV3rDnEybGxeIaiFggWKw2FKAy64po') || '',
+  PASTA_DRIVE_ID: PropertiesService.getScriptProperties().getProperty('1ErjoSsvlwv_jAvcrTZGR6yJCcvcCQ3S7') || '',
+  EMAIL_PADRAO: PropertiesService.getScriptProperties().getProperty('cmourasiga@gmail.com') || '',
   WEBHOOK_URL: PropertiesService.getScriptProperties().getProperty('WEBHOOK_URL') || ''
 };
 
