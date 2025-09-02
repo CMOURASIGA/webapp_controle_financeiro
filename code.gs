@@ -1,752 +1,646 @@
-// ===== CÓDIGO APPS SCRIPT - Controle Financeiro PJ =====
+// --- Code.gs - Versão Corrigida ---
 
-// Configurações globais
-const CONFIG = {
-  SHEET_ID: PropertiesService.getScriptProperties().getProperty('1JBux-TB-5U9nbQV3rDnEybGxeIaiFggWKw2FKAy64po') || '',
-  PASTA_DRIVE_ID: PropertiesService.getScriptProperties().getProperty('1ErjoSsvlwv_jAvcrTZGR6yJCcvcCQ3S7') || '',
-  EMAIL_PADRAO: PropertiesService.getScriptProperties().getProperty('cmourasiga@gmail.com') || '',
-  WEBHOOK_URL: PropertiesService.getScriptProperties().getProperty('WEBHOOK_URL') || ''
-};
+// Configurações do Script
+const PASTA_DRIVE_ID = 'SEU_ID_DA_PASTA_DO_DRIVE_PARA_COMPROVANTES'; // Opcional
+const WEBHOOK_URL = 'URL_DO_WEBHOOK_OPCIONAL'; // Opcional
 
-const DEFAULT_TIMEZONE = 'America/Sao_Paulo';
-
-// ===== INICIALIZAÇÃO E SETUP =====
-
-function doGet(e) {
-  try {
-    const path = e.parameter.path || '';
-    const params = e.parameter;
-    
-    // Verificar se usuário está logado
-    const user = Session.getActiveUser();
-    if (!user.getEmail()) {
-      return HtmlService.createHtmlOutput('Acesso não autorizado. Faça login com sua conta Google.');
-    }
-    
-    // Verificar e criar estrutura se necessário
-    if (!CONFIG.SHEET_ID) {
-      return criarEstruturainicial();
-    }
-    
-    // Rotas GET
-    if (path.startsWith('api/mes/')) {
-      const mes = path.replace('api/mes/', '');
-      return apiResponse(getMesData(mes));
-    }
-    
-    if (path === 'api/dashboard') {
-      return apiResponse(getDashboard());
-    }
-    
-    if (path === 'api/transacoes') {
-      return apiResponse(getTransacoes(params));
-    }
-    
-    if (path === 'api/agendas') {
-      return apiResponse(getAgendas(params));
-    }
-    
-    if (path === 'api/reservas') {
-      return apiResponse(getReservas());
-    }
-    
-    if (path === 'api/categorias') {
-      return apiResponse(getCategorias());
-    }
-    
-    if (path === 'api/setup/verificar') {
-      return apiResponse(verificarSetup());
-    }
-    
-    // Servir HTML do frontend
-    return HtmlService.createTemplateFromFile('index')
-      .evaluate()
-      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
-    
-  } catch (error) {
-    Logger.log('Erro no doGet: ' + error.toString());
-    return apiResponse(null, error.message);
-  }
-}
-
-function doPost(e) {
-  try {
-    const user = Session.getActiveUser();
-    if (!user.getEmail()) {
-      throw new Error('Acesso não autorizado');
-    }
-    
-    const route = e.parameter.path || e.parameter.v || '';
-    let data = {};
-    
-    try {
-      data = JSON.parse(e.postData.contents || '{}');
-    } catch (parseError) {
-      Logger.log('Erro ao parsear JSON: ' + parseError.toString());
-      throw new Error('Dados JSON inválidos');
-    }
-    
-    let result;
-
-    if (route === 'api/transacoes' || route === 'transacoes') {
-      result = criarTransacao(data);
-    } else if (route === 'api/agendas' || route === 'agendas') {
-      result = criarAgenda(data);
-    } else if (route === 'api/reservas' || route === 'reservas') {
-      result = criarReserva(data);
-    } else if (route === 'api/categorias' || route === 'categorias') {
-      result = criarCategoria(data);
-    } else if (route === 'api/setup/inicial' || route === 'setup/inicial') {
-      result = setupInicial();
-    } else if (route.match(/^api\/agendas\/[^/]+\/pagar$/)) {
-      const agendaId = route.split('/')[2];
-      result = pagarAgenda(agendaId);
-    } else {
-      throw new Error('Rota não encontrada: ' + route);
-    }
-
-    return ContentService.createTextOutput(JSON.stringify({ status: 'success', data: result }))
-      .setMimeType(ContentService.MimeType.JSON);
-  } catch (error) {
-    Logger.log('Erro no doPost: ' + error.toString());
-    return ContentService.createTextOutput(JSON.stringify({ status: 'error', message: error.toString() }))
-      .setMimeType(ContentService.MimeType.JSON);
-  }
-}
-
-function doDelete(e) {
-  try {
-    const user = Session.getActiveUser();
-    if (!user.getEmail()) {
-      throw new Error('Acesso não autorizado');
-    }
-    
-    const route = e.parameter.path || e.parameter.v || '';
-    let result;
-
-    if (route === 'api/categorias') {
-      const nome = e.parameter.categoria;
-      result = deletarCategoria(nome);
-    } else {
-      throw new Error('Rota não encontrada');
-    }
-
-    return ContentService.createTextOutput(JSON.stringify({ status: 'success', data: result }))
-      .setMimeType(ContentService.MimeType.JSON);
-  } catch (error) {
-    Logger.log('Erro no doDelete: ' + error.toString());
-    return ContentService.createTextOutput(JSON.stringify({ status: 'error', message: error.toString() }))
-      .setMimeType(ContentService.MimeType.JSON);
-  }
-}
-
-// ===== FUNÇÕES DE SETUP =====
-
-function criarEstruturainicial() {
-  try {
-    const sheetId = setupInicial();
-    
-    // Salvar configurações
-    PropertiesService.getScriptProperties().setProperties({
-      'SHEET_ID': sheetId,
-      'EMAIL_PADRAO': Session.getActiveUser().getEmail()
-    });
-    
-    return HtmlService.createHtmlOutput(`
-      <h2>Setup Inicial Concluído!</h2>
-      <p>Planilha criada com ID: ${sheetId}</p>
-      <p><a href="${SpreadsheetApp.openById(sheetId).getUrl()}" target="_blank">Abrir Planilha</a></p>
-      <p><a href="${ScriptApp.getService().getUrl()}" target="_blank">Acessar Sistema</a></p>
-    `);
-  } catch (error) {
-    return HtmlService.createHtmlOutput(`
-      <h2>Erro no Setup</h2>
-      <p>${error.message}</p>
-    `);
-  }
-}
-
-function verificarSetup() {
-  const user = Session.getActiveUser();
-  const sheetId = CONFIG.SHEET_ID;
+// Função principal para obter ou criar a planilha do usuário
+function checkAndGetSpreadsheetId() {
+  const userEmail = Session.getActiveUser().getEmail();
   
-  let planilhaExiste = false;
-  let planilhaUrl = '';
+  // Primeiro, tenta buscar o ID da planilha nas propriedades do usuário
+  const userProperties = PropertiesService.getUserProperties();
+  let sheetId = userProperties.getProperty('SPREADSHEET_ID');
   
   if (sheetId) {
     try {
-      const ss = SpreadsheetApp.openById(sheetId);
-      planilhaExiste = true;
-      planilhaUrl = ss.getUrl();
-    } catch (error) {
-      planilhaExiste = false;
+      // Verifica se a planilha ainda existe e é acessível
+      SpreadsheetApp.openById(sheetId);
+      Logger.log(`Planilha encontrada nas propriedades do usuário: ${sheetId}`);
+      return sheetId;
+    } catch (e) {
+      Logger.log(`Planilha salva nas propriedades não é mais acessível: ${e.message}`);
+      userProperties.deleteProperty('SPREADSHEET_ID');
     }
   }
   
-  return {
-    usuario: user.getEmail(),
-    planilhaConfigurada: !!sheetId,
-    planilhaExiste: planilhaExiste,
-    planilhaUrl: planilhaUrl,
-    timezone: Session.getScriptTimeZone()
-  };
-}
-
-// ===== FUNÇÕES DA API =====
-
-function getMesData(yyyymm) {
-  const ss = SpreadsheetApp.openById(CONFIG.SHEET_ID);
-  const sheetTransacoes = ss.getSheetByName('Transacoes');
+  // Se não encontrou nas propriedades, busca por nome
+  const spreadsheetName = `Controle Financeiro PJ (${userEmail})`;
+  const files = DriveApp.getFilesByName(spreadsheetName);
   
-  const data = sheetTransacoes.getDataRange().getValues();
-  const headers = data[0];
-  
-  const transacoes = data.slice(1).map(row => {
-    const obj = {};
-    headers.forEach((header, i) => obj[header] = row[i]);
-    return obj;
-  }).filter(t => {
-    const dataTransacao = new Date(t.data);
-    const mesTransacao = `${dataTransacao.getFullYear()}-${String(dataTransacao.getMonth() + 1).padStart(2, '0')}`;
-    return mesTransacao === yyyymm;
-  });
-  
-  const totais = calcularTotaisMes(transacoes);
-  
-  return { transacoes, totais };
-}
-
-function getDashboard() {
-  const cache = CacheService.getScriptCache();
-  const cached = cache.get('dashboard');
-  
-  if (cached) {
-    return JSON.parse(cached);
-  }
-  
-  const ss = SpreadsheetApp.openById(CONFIG.SHEET_ID);
-  const dashboardSheet = ss.getSheetByName('Dashboard');
-  
-  const kpis = {
-    totalEntradas: dashboardSheet.getRange('B2').getValue(),
-    totalImpostos: dashboardSheet.getRange('B3').getValue(),
-    totalProLabore: dashboardSheet.getRange('B4').getValue(),
-    totalDespesas: dashboardSheet.getRange('B5').getValue(),
-    saldoLiquido: dashboardSheet.getRange('B6').getValue()
-  };
-  
-  const agendas = getProximosVencimentos();
-  const atrasados = getAtrasados();
-  
-  const dashboard = { kpis, agendas, atrasados };
-  
-  cache.put('dashboard', JSON.stringify(dashboard), 300); // 5 min
-  
-  return dashboard;
-}
-
-function getTransacoes(params) {
-  const ss = SpreadsheetApp.openById(CONFIG.SHEET_ID);
-  const sheet = ss.getSheetByName('Transacoes');
-  
-  const data = sheet.getDataRange().getValues();
-  const headers = data[0];
-  
-  return data.slice(1).map(row => {
-    const obj = {};
-    headers.forEach((header, i) => obj[header] = row[i]);
-    return obj;
-  });
-}
-
-function getAgendas(params) {
-  const ss = SpreadsheetApp.openById(CONFIG.SHEET_ID);
-  const sheet = ss.getSheetByName('Agendas');
-  
-  const data = sheet.getDataRange().getValues();
-  const headers = data[0];
-  
-  return data.slice(1).map(row => {
-    const obj = {};
-    headers.forEach((header, i) => obj[header] = row[i]);
-    return obj;
-  });
-}
-
-function getReservas() {
-  const ss = SpreadsheetApp.openById(CONFIG.SHEET_ID);
-  const sheet = ss.getSheetByName('Reservas');
-  
-  const data = sheet.getDataRange().getValues();
-  const headers = data[0];
-  
-  return data.slice(1).map(row => {
-    const obj = {};
-    headers.forEach((header, i) => obj[header] = row[i]);
-    return obj;
-  });
-}
-
-function getCategorias() {
-  const ss = SpreadsheetApp.openById(CONFIG.SHEET_ID);
-  const sheet = ss.getSheetByName('Categorias');
-  
-  const data = sheet.getDataRange().getValues();
-  const headers = data[0];
-  
-  return data.slice(1).map(row => {
-    const obj = {};
-    headers.forEach((header, i) => obj[header] = row[i]);
-    return obj;
-  }).filter(cat => cat.ativo !== false);
-}
-
-function criarTransacao(data) {
-  const ss = SpreadsheetApp.openById(CONFIG.SHEET_ID);
-  const sheet = ss.getSheetByName('Transacoes');
-  
-  const id = Utilities.getUuid();
-  const agora = new Date();
-  const timezone = data.timezone || DEFAULT_TIMEZONE;
-
-  // Converter data do formato ISO para Date considerando timezone
-  const dataTransacao = new Date(data.data + 'T12:00:00');
-
-  const novaTransacao = [
-    id,
-    dataTransacao,
-    data.tipo,
-    data.categoria,
-    data.descricao,
-    Number(data.valor),
-    data.forma_pagto,
-    data.status || 'Pendente',
-    data.vinculo_agenda_id || '',
-    data.comprovante_url || '',
-    Utilities.formatDate(agora, timezone, "yyyy-MM-dd'T'HH:mm:ss'Z'"),
-    Utilities.formatDate(agora, timezone, "yyyy-MM-dd'T'HH:mm:ss'Z'")
-  ];
-  
-  sheet.appendRow(novaTransacao);
-  
-  // Se vinculada a agenda e status = Pago, atualizar agenda
-  if (data.vinculo_agenda_id && data.status === 'Pago') {
-    atualizarStatusAgenda(data.vinculo_agenda_id, 'Paga');
-  }
-  
-  logAuditoria('CREATE', 'Transacao', id, null, novaTransacao, Session.getActiveUser().getEmail());
-  
-  return { id, success: true };
-}
-
-function criarAgenda(data) {
-  const ss = SpreadsheetApp.openById(CONFIG.SHEET_ID);
-  const sheet = ss.getSheetByName('Agendas');
-  
-  const agendaId = Utilities.getUuid();
-  const agora = new Date();
-  const timezone = data.timezone || DEFAULT_TIMEZONE;
-  
-  // Converter data do formato ISO para Date
-  const dataVencimento = new Date(data.data_vencimento + 'T12:00:00');
-  
-  const novaAgenda = [
-    agendaId,
-    data.tipo,
-    data.descricao,
-    Number(data.valor_previsto),
-    dataVencimento,
-    data.recorrencia || 'Nenhuma',
-    'Aberta',
-    data.notificar_em || '7;3;1',
-    data.responsavel_email || CONFIG.EMAIL_PADRAO,
-    Utilities.formatDate(agora, timezone, "yyyy-MM-dd'T'HH:mm:ss'Z'"),
-    Utilities.formatDate(agora, timezone, "yyyy-MM-dd'T'HH:mm:ss'Z'")
-  ];
-  
-  sheet.appendRow(novaAgenda);
-  
-  // Gerar parcelas recorrentes se necessário
-  if (data.recorrencia && data.recorrencia !== 'Nenhuma' && data.parcelas > 1) {
-    gerarParcelasRecorrentes(data, agendaId);
-  }
-  
-  logAuditoria('CREATE', 'Agenda', agendaId, null, novaAgenda, Session.getActiveUser().getEmail());
-  
-  return { agendaId, success: true };
-}
-
-function criarReserva(data) {
-  const ss = SpreadsheetApp.openById(CONFIG.SHEET_ID);
-  const sheet = ss.getSheetByName('Reservas');
-  
-  const reservaId = Utilities.getUuid();
-  const agora = new Date();
-  const timezone = data.timezone || DEFAULT_TIMEZONE;
-  
-  const novaReserva = [
-    reservaId,
-    data.descricao,
-    data.categoria,
-    Number(data.valor_reservado),
-    Utilities.formatDate(agora, timezone, "yyyy-MM-dd'T'HH:mm:ss'Z'"),
-    Number(data.valor_reservado) // saldo inicial = valor reservado
-  ];
-  
-  sheet.appendRow(novaReserva);
-  
-  logAuditoria('CREATE', 'Reserva', reservaId, null, novaReserva, Session.getActiveUser().getEmail());
-  
-  return { reservaId, success: true };
-}
-
-function criarCategoria(data) {
-  const ss = SpreadsheetApp.openById(CONFIG.SHEET_ID);
-  const sheet = ss.getSheetByName('Categorias');
-
-  const novaCategoria = [
-    data.categoria,
-    data.tipo_padrao || '',
-    data.centro_custo || '',
-    true
-  ];
-
-  sheet.appendRow(novaCategoria);
-  
-  logAuditoria('CREATE', 'Categoria', data.categoria, null, novaCategoria, Session.getActiveUser().getEmail());
-
-  return { success: true };
-}
-
-function deletarCategoria(nome) {
-  const ss = SpreadsheetApp.openById(CONFIG.SHEET_ID);
-  const sheet = ss.getSheetByName('Categorias');
-
-  const data = sheet.getDataRange().getValues();
-  const rowIndex = data.findIndex(r => r[0] === nome);
-
-  if (rowIndex === -1) {
-    throw new Error('Categoria não encontrada');
-  }
-
-  sheet.getRange(rowIndex + 1, 4).setValue(false);
-  
-  logAuditoria('DELETE', 'Categoria', nome, data[rowIndex], [nome, '', '', false], Session.getActiveUser().getEmail());
-
-  return { success: true };
-}
-
-function pagarAgenda(agendaId) {
-  const ss = SpreadsheetApp.openById(CONFIG.SHEET_ID);
-  const agendaSheet = ss.getSheetByName('Agendas');
-  
-  // Buscar agenda
-  const data = agendaSheet.getDataRange().getValues();
-  const agendaRow = data.findIndex(row => row[0] === agendaId);
-  
-  if (agendaRow === -1) {
-    throw new Error('Agenda não encontrada');
-  }
-  
-  const agenda = data[agendaRow];
-  
-  // Criar transação automaticamente
-  const transacaoData = {
-    data: new Date().toISOString().split('T')[0],
-    tipo: agenda[1] === 'Pagar' ? 'Saída' : 'Entrada',
-    categoria: 'Pagamento Agendado',
-    descricao: agenda[2],
-    valor: agenda[3],
-    forma_pagto: 'Outros',
-    status: 'Pago',
-    vinculo_agenda_id: agendaId,
-    timezone: DEFAULT_TIMEZONE
-  };
-  
-  criarTransacao(transacaoData);
-  
-  // Atualizar status da agenda
-  agendaSheet.getRange(agendaRow + 1, 7).setValue('Paga');
-  agendaSheet.getRange(agendaRow + 1, 11).setValue(new Date());
-  
-  return { success: true };
-}
-
-// ===== FUNÇÕES DE APOIO =====
-
-function atualizarStatusAgenda(agendaId, status) {
-  const ss = SpreadsheetApp.openById(CONFIG.SHEET_ID);
-  const sheet = ss.getSheetByName('Agendas');
-  
-  const data = sheet.getDataRange().getValues();
-  const rowIndex = data.findIndex(row => row[0] === agendaId);
-  
-  if (rowIndex > 0) {
-    sheet.getRange(rowIndex + 1, 7).setValue(status);
-    sheet.getRange(rowIndex + 1, 11).setValue(new Date());
-  }
-}
-
-function calcularTotaisMes(transacoes) {
-  const totais = {
-    entradas: 0,
-    saidas: 0,
-    impostos: 0,
-    proLabore: 0,
-    despesas: 0,
-    investimentos: 0
-  };
-  
-  transacoes.forEach(t => {
-    if (t.status !== 'Pago') return;
-    
-    const valor = Number(t.valor);
-    
-    if (t.tipo === 'Entrada') {
-      totais.entradas += valor;
-      if (t.categoria === 'Investimento') totais.investimentos += valor;
-    } else if (t.tipo === 'Saída') {
-      totais.saidas += valor;
-      if (t.categoria === 'Imposto' || t.categoria === 'Contador') {
-        totais.impostos += valor;
-      } else if (t.categoria === 'Pró-labore') {
-        totais.proLabore += valor;
-      } else {
-        totais.despesas += valor;
-      }
+  if (files.hasNext()) {
+    const file = files.next();
+    sheetId = file.getId();
+    // Salva o ID nas propriedades do usuário para acesso futuro mais rápido
+    userProperties.setProperty('SPREADSHEET_ID', sheetId);
+    Logger.log(`Planilha existente encontrada para o usuário ${userEmail}. ID: ${sheetId}`);
+    return sheetId;
+  } else {
+    // Se a planilha não for encontrada, criar uma nova
+    Logger.log(`Planilha não encontrada para o usuário ${userEmail}. Criando nova...`);
+    try {
+      sheetId = createSpreadsheetFromScratch();
+      userProperties.setProperty('SPREADSHEET_ID', sheetId);
+      // Criar categorias padrão APÓS a criação da planilha
+      createDefaultCategories(sheetId);
+      return sheetId;
+    } catch (e) {
+      Logger.log(`Falha crítica ao criar a planilha do zero. Erro: ${e.message}`);
+      throw new Error("Não foi possível criar a planilha de controle financeiro. Entre em contato com o suporte.");
     }
-  });
-  
-  return totais;
-}
-
-function getProximosVencimentos() {
-  const ss = SpreadsheetApp.openById(CONFIG.SHEET_ID);
-  const sheet = ss.getSheetByName('Agendas');
-  
-  const data = sheet.getDataRange().getValues();
-  const headers = data[0];
-  
-  const hoje = new Date();
-  const proximosDias = new Date(hoje.getTime() + 7 * 24 * 60 * 60 * 1000);
-  
-  return data.slice(1).map(row => {
-    const obj = {};
-    headers.forEach((header, i) => obj[header] = row[i]);
-    return obj;
-  }).filter(agenda => {
-    const vencimento = new Date(agenda.data_vencimento);
-    return agenda.status !== 'Paga' && vencimento >= hoje && vencimento <= proximosDias;
-  });
-}
-
-function getAtrasados() {
-  const ss = SpreadsheetApp.openById(CONFIG.SHEET_ID);
-  const sheet = ss.getSheetByName('Agendas');
-  
-  const data = sheet.getDataRange().getValues();
-  const headers = data[0];
-  
-  const hoje = new Date();
-  
-  return data.slice(1).map(row => {
-    const obj = {};
-    headers.forEach((header, i) => obj[header] = row[i]);
-    return obj;
-  }).filter(agenda => {
-    const vencimento = new Date(agenda.data_vencimento);
-    return agenda.status !== 'Paga' && vencimento < hoje;
-  });
-}
-
-function gerarParcelasRecorrentes(dadosOriginais, agendaIdOriginal) {
-  // TODO: Implementar geração de parcelas recorrentes
-  console.log('Gerando parcelas para:', agendaIdOriginal);
-}
-
-// ===== AUDITORIA E LOGS =====
-
-function logAuditoria(acao, entidade, entityId, antes, depois, usuario) {
-  try {
-    const ss = SpreadsheetApp.openById(CONFIG.SHEET_ID);
-    const logSheet = ss.getSheetByName('Log');
-    
-    const logEntry = [
-      new Date(),
-      acao,
-      entidade,
-      entityId,
-      JSON.stringify(antes),
-      JSON.stringify(depois),
-      usuario
-    ];
-    
-    logSheet.appendRow(logEntry);
-  } catch (error) {
-    console.error('Erro no log de auditoria:', error);
   }
 }
 
-function logError(funcao, erro) {
-  try {
-    const ss = SpreadsheetApp.openById(CONFIG.SHEET_ID);
-    const errorSheet = ss.getSheetByName('Erros');
-    
-    errorSheet.appendRow([
-      new Date(),
-      funcao,
-      erro,
-      Session.getActiveUser().getEmail()
-    ]);
-  } catch (e) {
-    console.error('Erro ao logar erro:', e);
-  }
-}
-
-// ===== FUNÇÕES UTILITÁRIAS =====
-
-function apiResponse(data, error = null) {
-  const response = {
-    ok: !error,
-    data: data,
-    error: error,
-    timestamp: new Date().toISOString()
-  };
+// Função para criar uma nova planilha do zero
+function createSpreadsheetFromScratch() {
+  const userEmail = Session.getActiveUser().getEmail();
+  const ss = SpreadsheetApp.create(`Controle Financeiro PJ (${userEmail})`);
   
-  return ContentService
-    .createTextOutput(JSON.stringify(response))
-    .setMimeType(ContentService.MimeType.JSON);
-}
-
-// ===== CONFIGURAÇÃO INICIAL =====
-
-function setupInicial() {
-  // Criar planilha modelo
-  const sheetId = criarPlanilhaModelo();
-  
-  // Configurar triggers
-  ScriptApp.newTrigger('verificarVencimentosDiarios')
-    .timeBased()
-    .everyDays(1)
-    .atHour(8)
-    .create();
-    
-  console.log('Setup inicial concluído!');
-  return sheetId;
-}
-
-function criarPlanilhaModelo() {
-  const user = Session.getActiveUser();
-  const ss = SpreadsheetApp.create(`Controle Financeiro PJ - ${user.getEmail()}`);
-  
-  // Aba Transacoes
+  // Criação das abas e cabeçalhos essenciais
   const transacoesSheet = ss.insertSheet('Transacoes');
-  transacoesSheet.getRange('A1:L1').setValues([[
-    'id', 'data', 'tipo', 'categoria', 'descricao', 'valor', 
-    'forma_pagto', 'status', 'vinculo_agenda_id', 'comprovante_url', 
-    'criado_em', 'atualizado_em'
-  ]]);
-  
-  // Aba Agendas
+  transacoesSheet.getRange('A1:F1').setValues([['data_transacao', 'tipo', 'categoria', 'descricao', 'valor', 'timestamp']]);
+
   const agendasSheet = ss.insertSheet('Agendas');
-  agendasSheet.getRange('A1:K1').setValues([[
-    'agenda_id', 'tipo', 'descricao', 'valor_previsto', 'data_vencimento',
-    'recorrencia', 'status', 'notificar_em', 'responsavel_email', 
-    'criado_em', 'atualizado_em'
-  ]]);
-  
-  // Aba Reservas
+  agendasSheet.getRange('A1:E1').setValues([['data_vencimento', 'descricao', 'tipo', 'valor_previsto', 'status']]);
+
   const reservasSheet = ss.insertSheet('Reservas');
-  reservasSheet.getRange('A1:F1').setValues([[
-    'reserva_id', 'descricao', 'categoria', 'valor_reservado', 'data_reserva', 'saldo_reserva'
-  ]]);
-  
-  // Aba Categorias
-  const categoriasSheet = ss.insertSheet('Categorias');
-  categoriasSheet.getRange('A1:D1').setValues([['categoria', 'tipo_padrao', 'centro_custo', 'ativo']]);
-  categoriasSheet.getRange('A2:D10').setValues([
-    ['Imposto', 'Saída', '', true],
-    ['Contador', 'Saída', '', true],
-    ['Pró-labore', 'Saída', '', true],
-    ['Despesa', 'Saída', '', true],
-    ['Investimento', 'Entrada', '', true],
-    ['Receita', 'Entrada', '', true],
-    ['Transferência', 'Transferência', '', true],
-    ['Material', 'Saída', '', true],
-    ['Equipamento', 'Saída', '', true]
-  ]);
-  
-  // Aba Dashboard
+  reservasSheet.getRange('A1:C1').setValues([['descricao', 'valor_reservado', 'data_reserva']]);
+
   const dashboardSheet = ss.insertSheet('Dashboard');
-  dashboardSheet.getRange('A1:B6').setValues([
-    ['KPI', 'Valor'],
-    ['Total Entradas', '=SUMIF(Transacoes!C:C,"Entrada",Transacoes!F:F)'],
-    ['Total Impostos', '=SUMIFS(Transacoes!F:F,Transacoes!D:D,"Imposto",Transacoes!H:H,"Pago")+SUMIFS(Transacoes!F:F,Transacoes!D:D,"Contador",Transacoes!H:H,"Pago")'],
-    ['Total Pró-labore', '=SUMIFS(Transacoes!F:F,Transacoes!D:D,"Pró-labore",Transacoes!H:H,"Pago")'],
-    ['Total Despesas', '=SUMIFS(Transacoes!F:F,Transacoes!C:C,"Saída",Transacoes!H:H,"Pago")-B3-B4'],
-    ['Saldo Líquido', '=B2-B3-B4-B5']
-  ]);
-  
-  // Aba Config
-  const configSheet = ss.insertSheet('Config');
-  configSheet.getRange('A1:B10').setValues([
-    ['Configuração', 'Valor'],
-    ['SHEET_ID', ss.getId()],
-    ['EMAIL_PADRAO', user.getEmail()],
-    ['TIMEZONE', DEFAULT_TIMEZONE],
-    ['VERSAO', '1.0.0'],
-    ['CRIADO_EM', new Date()],
-    ['CRIADO_POR', user.getEmail()],
-    ['PASTA_DRIVE_ID', ''],
-    ['WEBHOOK_URL', ''],
-    ['LAST_UPDATE', new Date()]
-  ]);
-  
-  // Abas de Log e Erros
-  const logSheet = ss.insertSheet('Log');
-  logSheet.getRange('A1:G1').setValues([['timestamp', 'acao', 'entidade', 'entity_id', 'antes', 'depois', 'usuario']]);
-  
-  const errorSheet = ss.insertSheet('Erros');
-  errorSheet.getRange('A1:D1').setValues([['timestamp', 'funcao', 'erro', 'usuario']]);
-  
-  console.log('Planilha criada:', ss.getUrl());
-  console.log('SHEET_ID:', ss.getId());
-  
+  dashboardSheet.getRange('A1:B3').setValues([['KPI', 'VALOR'], ['Saldo Líquido', 0], ['Próximo Vencimento', '']]);
+
+  const categoriasSheet = ss.insertSheet('Categorias');
+  categoriasSheet.getRange('A1:D1').setValues([['categoria', 'tipoPadrao', 'centroCusto', 'ativo']]);
+
+  // Remove a aba padrão que vem com a planilha
+  try {
+    ss.deleteSheet(ss.getSheetByName('Sheet1'));
+  } catch (e) {
+    Logger.log('Aba Sheet1 não encontrada para remoção');
+  }
+
   return ss.getId();
 }
 
-// ===== TRIGGERS E NOTIFICAÇÕES =====
-
-function verificarVencimentosDiarios() {
+// Função para criar categorias padrão
+function createDefaultCategories(sheetId) {
   try {
-    const agendas = getProximosVencimentos();
-    const atrasados = getAtrasados();
+    const defaultCategories = [
+      { categoria: 'Vendas', tipoPadrao: 'Entrada', centroCusto: 'Receitas', ativo: true },
+      { categoria: 'Prestação de Serviços', tipoPadrao: 'Entrada', centroCusto: 'Receitas', ativo: true },
+      { categoria: 'Aluguel', tipoPadrao: 'Saída', centroCusto: 'Despesas Fixas', ativo: true },
+      { categoria: 'Energia Elétrica', tipoPadrao: 'Saída', centroCusto: 'Despesas Fixas', ativo: true },
+      { categoria: 'Internet', tipoPadrao: 'Saída', centroCusto: 'Despesas Fixas', ativo: true },
+      { categoria: 'Material de Escritório', tipoPadrao: 'Saída', centroCusto: 'Despesas Operacionais', ativo: true },
+      { categoria: 'Marketing', tipoPadrao: 'Saída', centroCusto: 'Despesas Operacionais', ativo: true },
+      { categoria: 'Impostos', tipoPadrao: 'Saída', centroCusto: 'Impostos e Taxas', ativo: true },
+      { categoria: 'Taxas Bancárias', tipoPadrao: 'Saída', centroCusto: 'Despesas Financeiras', ativo: true }
+    ];
+
+    const ss = SpreadsheetApp.openById(sheetId);
+    const sheet = ss.getSheetByName('Categorias');
     
-    // Marcar como atrasado
-    if (atrasados.length > 0) {
-      marcarComoAtrasado(atrasados);
-    }
+    defaultCategories.forEach(categoria => {
+      const newRow = [
+        categoria.categoria,
+        categoria.tipoPadrao,
+        categoria.centroCusto || '',
+        categoria.ativo !== false
+      ];
+      sheet.appendRow(newRow);
+    });
     
-    // Enviar notificações
-    if (agendas.length > 0 || atrasados.length > 0) {
-      enviarNotificacoes(agendas, atrasados);
-    }
-    
+    Logger.log('Categorias padrão criadas com sucesso');
   } catch (error) {
-    logError('verificarVencimentosDiarios', error.message);
+    Logger.log(`Erro ao criar categorias padrão: ${error.message}`);
   }
 }
 
-function marcarComoAtrasado(agendas) {
-  const ss = SpreadsheetApp.openById(CONFIG.SHEET_ID);
-  const sheet = ss.getSheetByName('Agendas');
-  
-  const data = sheet.getDataRange().getValues();
-  
-  agendas.forEach(agenda => {
-    const rowIndex = data.findIndex(row => row[0] === agenda.agenda_id);
-    if (rowIndex > 0) {
-      sheet.getRange(rowIndex + 1, 7).setValue('Atrasada');
+// Funções utilitárias
+function getSpreadsheet() {
+  const sheetId = checkAndGetSpreadsheetId();
+  if (!sheetId) {
+    throw new Error("ID da planilha do usuário não encontrado. Tente novamente.");
+  }
+  return SpreadsheetApp.openById(sheetId);
+}
+
+function getSheetByName(name) {
+  const ss = getSpreadsheet();
+  const sheet = ss.getSheetByName(name);
+  if (!sheet) {
+    throw new Error(`Aba '${name}' não encontrada na planilha.`);
+  }
+  return sheet;
+}
+
+// Função principal para servir a página HTML
+function doGet(e) {
+  try {
+    // Garante que a planilha existe
+    const sheetId = checkAndGetSpreadsheetId();
+    
+    const template = HtmlService.createTemplateFromFile('index');
+    template.sheetId = sheetId;
+    
+    return template.evaluate()
+      .setTitle('Controle Financeiro PJ')
+      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+  } catch (error) {
+    Logger.log(`Erro no doGet: ${error.message}`);
+    return HtmlService.createHtmlOutput(`
+      <h1>Erro</h1>
+      <p>${error.message}</p>
+      <p>Tente recarregar a página ou entre em contato com o suporte.</p>
+    `);
+  }
+}
+
+// CORRIGIDO: Função para roteamento simplificado
+function doPost(e) {
+  try {
+    const payload = JSON.parse(e.postData.contents);
+    Logger.log(`Requisição POST: ${JSON.stringify(payload)}`);
+    
+    const endpoint = payload.endpoint;
+    const data = payload.data;
+    let result;
+    
+    switch (endpoint) {
+      case '/api/categorias/create':
+        result = createCategoria(data);
+        break;
+      case '/api/transacoes':
+        result = createTransacao(data);
+        break;
+      case '/api/agendas':
+        result = createAgenda(data);
+        break;
+      case '/api/reservas':
+        result = createReserva(data);
+        break;
+      default:
+        result = { success: false, error: 'Endpoint não encontrado' };
     }
-  });
+    
+    return ContentService
+      .createTextOutput(JSON.stringify(result))
+      .setMimeType(ContentService.MimeType.JSON);
+      
+  } catch (error) {
+    Logger.log(`Erro no doPost: ${error.message}`);
+    return ContentService
+      .createTextOutput(JSON.stringify({ success: false, error: error.message }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+// === FUNÇÕES DE API CORRIGIDAS ===
+
+// NOVA: Função unificada para buscar dados (chamada diretamente do frontend)
+function getCategorias() {
+  try {
+    const sheet = getSheetByName('Categorias');
+    const data = sheet.getDataRange().getValues();
+    
+    if (data.length <= 1) {
+      return { success: true, data: [] };
+    }
+    
+    const headers = data[0];
+    const rows = data.slice(1);
+    
+    const categorias = rows.map(row => {
+      const obj = {};
+      headers.forEach((header, index) => {
+        obj[header] = row[index];
+      });
+      return obj;
+    }).filter(categoria => categoria.ativo !== false);
+    
+    return { success: true, data: categorias };
+  } catch (error) {
+    Logger.log(`Erro ao buscar categorias: ${error.message}`);
+    return { success: false, error: error.message };
+  }
+}
+
+function createCategoria(data) {
+  try {
+    // Validações básicas
+    if (!data.categoria || !data.tipoPadrao) {
+      throw new Error('Categoria e tipo padrão são obrigatórios');
+    }
+    
+    const sheet = getSheetByName('Categorias');
+    
+    // Verificar se já existe uma categoria com o mesmo nome
+    const existingData = sheet.getDataRange().getValues();
+    const existingCategories = existingData.slice(1).map(row => row[0]);
+    
+    if (existingCategories.includes(data.categoria)) {
+      throw new Error('Já existe uma categoria com este nome');
+    }
+    
+    const newRow = [
+      data.categoria,
+      data.tipoPadrao,
+      data.centroCusto || '',
+      data.ativo !== false
+    ];
+    
+    sheet.appendRow(newRow);
+    
+    Logger.log(`Categoria criada: ${data.categoria}`);
+    return { success: true, data: { message: 'Categoria criada com sucesso.' } };
+  } catch (error) {
+    Logger.log(`Erro ao criar categoria: ${error.message}`);
+    return { success: false, error: error.message };
+  }
+}
+
+// Transações
+function getTransacoes() {
+  try {
+    const sheet = getSheetByName('Transacoes');
+    const data = sheet.getDataRange().getValues();
+    
+    if (data.length <= 1) {
+      return { success: true, data: [] };
+    }
+    
+    const headers = data[0];
+    const rows = data.slice(1);
+    
+    const transacoes = rows.map(row => {
+      const obj = {};
+      headers.forEach((header, index) => {
+        obj[header] = row[index];
+      });
+      return obj;
+    });
+    
+    return { success: true, data: transacoes };
+  } catch (error) {
+    Logger.log(`Erro ao buscar transações: ${error.message}`);
+    return { success: false, error: error.message };
+  }
+}
+
+function createTransacao(data) {
+  try {
+    // Validações básicas
+    if (!data.data_transacao || !data.tipo || !data.categoria || !data.descricao || !data.valor) {
+      throw new Error('Todos os campos são obrigatórios');
+    }
+    
+    if (isNaN(data.valor) || data.valor <= 0) {
+      throw new Error('Valor deve ser um número positivo');
+    }
+    
+    const sheet = getSheetByName('Transacoes');
+    const newRow = [
+      new Date(data.data_transacao),
+      data.tipo,
+      data.categoria,
+      data.descricao,
+      parseFloat(data.valor),
+      new Date()
+    ];
+    
+    sheet.appendRow(newRow);
+    
+    Logger.log(`Transação criada: ${data.tipo} - ${data.descricao} - R$ ${data.valor}`);
+    return { success: true, data: { message: 'Transação criada com sucesso.' } };
+  } catch (error) {
+    Logger.log(`Erro ao criar transação: ${error.message}`);
+    return { success: false, error: error.message };
+  }
+}
+
+// Agendas
+function getAgendas() {
+  try {
+    const sheet = getSheetByName('Agendas');
+    const data = sheet.getDataRange().getValues();
+    
+    if (data.length <= 1) {
+      return { success: true, data: [] };
+    }
+    
+    const headers = data[0];
+    const rows = data.slice(1);
+    
+    const agendas = rows.map(row => {
+      const obj = {};
+      headers.forEach((header, index) => {
+        obj[header] = row[index];
+      });
+      return obj;
+    });
+    
+    return { success: true, data: agendas };
+  } catch (error) {
+    Logger.log(`Erro ao buscar agendas: ${error.message}`);
+    return { success: false, error: error.message };
+  }
+}
+
+function createAgenda(data) {
+  try {
+    // Validações básicas
+    if (!data.data_vencimento || !data.descricao || !data.tipo || !data.valor_previsto) {
+      throw new Error('Todos os campos são obrigatórios');
+    }
+    
+    if (isNaN(data.valor_previsto) || data.valor_previsto <= 0) {
+      throw new Error('Valor previsto deve ser um número positivo');
+    }
+    
+    const sheet = getSheetByName('Agendas');
+    const newRow = [
+      new Date(data.data_vencimento),
+      data.descricao,
+      data.tipo,
+      parseFloat(data.valor_previsto),
+      'Pendente'
+    ];
+    
+    sheet.appendRow(newRow);
+    
+    Logger.log(`Agendamento criado: ${data.descricao} - ${data.data_vencimento}`);
+    return { success: true, data: { message: 'Agendamento criado com sucesso.' } };
+  } catch (error) {
+    Logger.log(`Erro ao criar agendamento: ${error.message}`);
+    return { success: false, error: error.message };
+  }
+}
+
+// Reservas
+function getReservas() {
+  try {
+    const sheet = getSheetByName('Reservas');
+    const data = sheet.getDataRange().getValues();
+    
+    if (data.length <= 1) {
+      return { success: true, data: [] };
+    }
+    
+    const headers = data[0];
+    const rows = data.slice(1);
+    
+    const reservas = rows.map(row => {
+      const obj = {};
+      headers.forEach((header, index) => {
+        obj[header] = row[index];
+      });
+      return obj;
+    });
+    
+    return { success: true, data: reservas };
+  } catch (error) {
+    Logger.log(`Erro ao buscar reservas: ${error.message}`);
+    return { success: false, error: error.message };
+  }
+}
+
+function createReserva(data) {
+  try {
+    // Validações básicas
+    if (!data.descricao || !data.valor_reservado) {
+      throw new Error('Descrição e valor são obrigatórios');
+    }
+    
+    if (isNaN(data.valor_reservado) || data.valor_reservado <= 0) {
+      throw new Error('Valor da reserva deve ser um número positivo');
+    }
+    
+    const sheet = getSheetByName('Reservas');
+    const newRow = [
+      data.descricao,
+      parseFloat(data.valor_reservado),
+      new Date()
+    ];
+    
+    sheet.appendRow(newRow);
+    
+    Logger.log(`Reserva criada: ${data.descricao} - R$ ${data.valor_reservado}`);
+    return { success: true, data: { message: 'Reserva criada com sucesso.' } };
+  } catch (error) {
+    Logger.log(`Erro ao criar reserva: ${error.message}`);
+    return { success: false, error: error.message };
+  }
+}
+
+// Dashboard
+function getDashboard() {
+  try {
+    const transacoesSheet = getSheetByName('Transacoes');
+    const agendasSheet = getSheetByName('Agendas');
+    const reservasSheet = getSheetByName('Reservas');
+    
+    // Calcular saldo líquido
+    let saldoLiquido = 0;
+    const transacoesData = transacoesSheet.getDataRange().getValues();
+    if (transacoesData.length > 1) {
+      for (let i = 1; i < transacoesData.length; i++) {
+        const tipo = transacoesData[i][1];
+        const valor = transacoesData[i][4];
+        if (typeof valor === 'number') {
+          if (tipo === 'Entrada') {
+            saldoLiquido += valor;
+          } else if (tipo === 'Saída') {
+            saldoLiquido -= valor;
+          }
+        }
+      }
+    }
+    
+    // Próximos vencimentos
+    const proximosVencimentos = [];
+    const agendasData = agendasSheet.getDataRange().getValues();
+    if (agendasData.length > 1) {
+      const hoje = new Date();
+      hoje.setHours(0, 0, 0, 0); // Zerar horário para comparação apenas de data
+      
+      for (let i = 1; i < agendasData.length; i++) {
+        const dataVencimento = new Date(agendasData[i][0]);
+        const status = agendasData[i][4];
+        
+        if (status === 'Pendente' && dataVencimento >= hoje) {
+          proximosVencimentos.push({
+            data_vencimento: agendasData[i][0],
+            descricao: agendasData[i][1],
+            tipo: agendasData[i][2],
+            valor_previsto: agendasData[i][3]
+          });
+        }
+      }
+    }
+    
+    // Ordenar por data de vencimento
+    proximosVencimentos.sort((a, b) => new Date(a.data_vencimento) - new Date(b.data_vencimento));
+    
+    Logger.log(`Dashboard calculado - Saldo: R$ ${saldoLiquido}, Vencimentos: ${proximosVencimentos.length}`);
+    
+    return {
+      success: true,
+      data: {
+        kpis: {
+          saldoLiquido: saldoLiquido
+        },
+        proximosVencimentos: proximosVencimentos.slice(0, 5) // Apenas os próximos 5
+      }
+    };
+  } catch (error) {
+    Logger.log(`Erro ao calcular dashboard: ${error.message}`);
+    return { success: false, error: error.message };
+  }
+}
+
+// Função auxiliar para incluir arquivos HTML/CSS/JS
+function include(filename) {
+  return HtmlService.createHtmlOutputFromFile(filename).getContent();
+}
+
+// NOVAS FUNÇÕES PARA CORRIGIR A COMUNICAÇÃO FRONTEND-BACKEND
+
+// Função para salvar transação (chamada diretamente do frontend)
+function salvarTransacao(data) {
+  return createTransacao(data);
+}
+
+// Função para salvar agenda (chamada diretamente do frontend)  
+function salvarAgenda(data) {
+  return createAgenda(data);
+}
+
+// Função para salvar reserva (chamada diretamente do frontend)
+function salvarReserva(data) {
+  return createReserva(data);
+}
+
+// Função para salvar categoria (chamada diretamente do frontend)
+function salvarCategoria(data) {
+  return createCategoria(data);
+}
+
+// Função para teste e debug
+function testCreateDefaultCategories() {
+  try {
+    // Para testar, você precisaria de um sheetId válido
+    // createDefaultCategories(checkAndGetSpreadsheetId()); 
+    Logger.log('Teste de criação de categorias padrão concluído');
+  } catch (error) {
+    Logger.log(`Erro no teste: ${error.message}`);
+  }
+}
+// Função para debug - adicione no Code.gs
+function getDebugInfo() {
+  try {
+    const userEmail = Session.getActiveUser().getEmail();
+    const sheetId = checkAndGetSpreadsheetId();
+    
+    return {
+      success: true,
+      sheetId: sheetId,
+      userEmail: userEmail
+    };
+  } catch (error) {
+    Logger.log(`Erro no debug: ${error.message}`);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+}
+// Adicione estas funções ao seu Code.gs
+
+// Função para debug - mostra informações da planilha e usuário
+function getDebugInfo() {
+  try {
+    const userEmail = Session.getActiveUser().getEmail();
+    const sheetId = checkAndGetSpreadsheetId();
+    
+    return {
+      success: true,
+      sheetId: sheetId,
+      userEmail: userEmail,
+      spreadsheetUrl: `https://docs.google.com/spreadsheets/d/${sheetId}`
+    };
+  } catch (error) {
+    Logger.log(`Erro ao obter debug info: ${error.message}`);
+    return {
+      success: false,
+      error: error.message,
+      userEmail: Session.getActiveUser().getEmail(),
+      sheetId: 'Erro ao acessar'
+    };
+  }
+}
+
+// Função melhorada para salvar transação com mais logs
+function salvarTransacao(data) {
+  try {
+    Logger.log(`=== INICIANDO SALVAMENTO DE TRANSAÇÃO ===`);
+    Logger.log(`Dados recebidos: ${JSON.stringify(data)}`);
+    
+    // Validações detalhadas
+    if (!data.data_transacao) {
+      throw new Error('Data da transação é obrigatória');
+    }
+    if (!data.tipo) {
+      throw new Error('Tipo da transação é obrigatório');
+    }
+    if (!data.categoria) {
+      throw new Error('Categoria é obrigatória');
+    }
+    if (!data.descricao) {
+      throw new Error('Descrição é obrigatória');
+    }
+    if (!data.valor || isNaN(data.valor) || data.valor <= 0) {
+      throw new Error('Valor deve ser um número positivo');
+    }
+    
+    const sheetId = checkAndGetSpreadsheetId();
+    Logger.log(`ID da planilha: ${sheetId}`);
+    
+    const ss = SpreadsheetApp.openById(sheetId);
+    const sheet = ss.getSheetByName('Transacoes');
+    
+    if (!sheet) {
+      throw new Error('Aba "Transacoes" não encontrada na planilha');
+    }
+    
+    Logger.log(`Aba Transacoes encontrada. Última linha: ${sheet.getLastRow()}`);
+    
+    const newRow = [
+      new Date(data.data_transacao),
+      data.tipo,
+      data.categoria,
+      data.descricao,
+      parseFloat(data.valor),
+      new Date()
+    ];
+    
+    Logger.log(`Dados para inserir: ${JSON.stringify(newRow)}`);
+    
+    sheet.appendRow(newRow);
+    
+    Logger.log(`Transação inserida com sucesso. Nova última linha: ${sheet.getLastRow()}`);
+    Logger.log(`=== TRANSAÇÃO SALVA COM SUCESSO ===`);
+    
+    return { 
+      success: true, 
+      data: { 
+        message: 'Transação criada com sucesso.',
+        rowNumber: sheet.getLastRow()
+      } 
+    };
+  } catch (error) {
+    Logger.log(`=== ERRO AO SALVAR TRANSAÇÃO ===`);
+    Logger.log(`Erro: ${error.message}`);
+    Logger.log(`Stack: ${error.stack}`);
+    return { success: false, error: error.message };
+  }
 }
